@@ -1,6 +1,7 @@
 // Load test for the OpenHIM emitter adaptor (eBUZIMA → adaptor → collector).
 // Run: ./run.sh local adaptor/openhim.js                    (smoke, then load)
 //      ./run.sh local adaptor/openhim.js -e PROFILE=smoke   (smoke only)
+//      ./run.sh local adaptor/openhim.js -e PROFILE=stress  (smoke, then a staircase to find the breaking point)
 import http from 'k6/http';
 import { check } from 'k6';
 
@@ -10,42 +11,76 @@ if (!__ENV.ENV) {
 const config = JSON.parse(open(`../env/${__ENV.ENV}.json`)).openhimAdaptor;
 
 const PROFILE = __ENV.PROFILE || 'full';
-if (!['full', 'smoke'].includes(PROFILE)) {
-  throw new Error(`PROFILE must be full or smoke, not ${PROFILE}`);
+if (!['full', 'smoke', 'stress'].includes(PROFILE)) {
+  throw new Error(`PROFILE must be full, smoke or stress, not ${PROFILE}`);
 }
 
-const scenarios = {
-  // Smoke: 1 request per second for 30 seconds, to prove the script and setup work.
-  smoke: {
-    executor: 'constant-arrival-rate',
-    rate: 1,
-    timeUnit: '1s',
-    duration: '30s',
-    preAllocatedVUs: 2,
-  },
-  // Load: 100 requests per second for 5 minutes (the adaptor's documented target), after the smoke.
-  load: {
-    executor: 'constant-arrival-rate',
-    rate: 100,
-    timeUnit: '1s',
-    duration: '5m',
-    startTime: '30s',
-    preAllocatedVUs: 50, // virtual users ready at the start
-    maxVUs: 200,         // k6 may add more if the adaptor slows down, up to this
-  },
+// Smoke: 1 request per second for 30 seconds, to prove the script and setup work.
+const smoke = {
+  executor: 'constant-arrival-rate',
+  rate: 1,
+  timeUnit: '1s',
+  duration: '30s',
+  preAllocatedVUs: 2,
 };
 
-export const options = {
-  scenarios: PROFILE === 'smoke' ? { smoke: scenarios.smoke } : scenarios,
-  thresholds: {
-    http_req_duration: ['p(95)<500'], // 95% of requests answered within 500 ms
-    http_req_failed: ['rate<0.01'],   // under 1% of requests get a 4xx/5xx
-    checks: ['rate>0.99'],            // over 99% pass the checks below (catches "200 skipped")
-    dropped_iterations: ['count==0'], // k6 always managed to send at the set rate
-    // If the smoke fails, stop at once instead of sending 30,000 bad requests in the load run.
-    'checks{scenario:smoke}': [{ threshold: 'rate>0.99', abortOnFail: true }],
-  },
+// Load: 100 requests per second for 5 minutes (the adaptor's documented target), after the smoke.
+const load = {
+  executor: 'constant-arrival-rate',
+  rate: 100,
+  timeUnit: '1s',
+  duration: '5m',
+  startTime: '30s',
+  preAllocatedVUs: 50, // virtual users ready at the start
+  maxVUs: 200,         // k6 may add more if the adaptor slows down, up to this
 };
+
+// Pass/fail rules for the load run.
+const loadThresholds = {
+  http_req_duration: ['p(95)<500'], // 95% of requests answered within 500 ms
+  http_req_failed: ['rate<0.01'],   // under 1% of requests get a 4xx/5xx
+  checks: ['rate>0.99'],            // over 99% pass the checks below (catches "200 skipped")
+  dropped_iterations: ['count==0'], // k6 always managed to send at the set rate
+};
+
+// If the smoke fails, stop at once instead of sending thousands of bad requests.
+const smokeAbort = {
+  'checks{scenario:smoke}': [{ threshold: 'rate>0.99', abortOnFail: true }],
+};
+
+// Stress: one step per level, 1 minute each, one after another after the smoke.
+// Each step is its own scenario (stress_100, stress_200, ...), so the summary shows pass/fail per level
+// with the same rules as the load run. The first level that fails is the breaking point.
+const STRESS_LEVELS = [100, 200, 400, 600, 800, 1000]; // requests per second
+const stress = {};
+const stressThresholds = {
+  // Safety stop: over 10% errors means the service is down, so stop instead of hammering it.
+  http_req_failed: [{ threshold: 'rate<0.10', abortOnFail: true, delayAbortEval: '10s' }],
+};
+STRESS_LEVELS.forEach((rate, i) => {
+  const name = `stress_${rate}`;
+  stress[name] = {
+    executor: 'constant-arrival-rate',
+    rate,
+    timeUnit: '1s',
+    duration: '1m',
+    startTime: `${30 + i * 60}s`,
+    preAllocatedVUs: 50,
+    maxVUs: 500,
+  };
+  stressThresholds[`http_req_duration{scenario:${name}}`] = ['p(95)<500'];
+  stressThresholds[`http_req_failed{scenario:${name}}`] = ['rate<0.01'];
+  stressThresholds[`checks{scenario:${name}}`] = ['rate>0.99'];
+  stressThresholds[`dropped_iterations{scenario:${name}}`] = ['count==0'];
+});
+
+const PROFILES = {
+  smoke: { scenarios: { smoke }, thresholds: { ...loadThresholds, ...smokeAbort } },
+  full: { scenarios: { smoke, load }, thresholds: { ...loadThresholds, ...smokeAbort } },
+  stress: { scenarios: { smoke, ...stress }, thresholds: { ...stressThresholds, ...smokeAbort } },
+};
+
+export const options = PROFILES[PROFILE];
 
 // Runs once before the test starts: print where the load is going.
 export function setup() {

@@ -43,6 +43,9 @@ CREATE TEMP TABLE lt_step_instance AS
   SELECT id FROM step_instance WHERE protocol_instance_id IN (SELECT id FROM lt_protocol_instance);
 CREATE TEMP TABLE lt_event AS
   SELECT cloudevents_id FROM inbound_event_log WHERE raw_payload->>'subject' LIKE 'LOADTEST-%';
+ANALYZE lt_protocol_instance;
+ANALYZE lt_step_instance;
+ANALYZE lt_event;
 "
 
 echo "Database: $(jq -r '.db | "\(.user)@\(.host):\(.port)/\(.name)"' "$CONFIG")  (env: $ENV_NAME)"
@@ -84,7 +87,12 @@ DELETE FROM intelligence_event_log
 DELETE FROM step_instance WHERE id IN (SELECT id FROM lt_step_instance);
 DELETE FROM protocol_instance_history WHERE protocol_instance_id IN (SELECT id FROM lt_protocol_instance);
 DELETE FROM protocol_instance WHERE id IN (SELECT id FROM lt_protocol_instance);
+-- step_instance.matched_event_id has a foreign key to matcher_event_log but no index, so without this
+-- every deleted matcher_event_log row scans all of step_instance (hours for 100k+ events).
+-- The index exists only inside this transaction; while it does, writes to step_instance wait.
+CREATE INDEX loadtest_cleanup_matched_event ON step_instance (matched_event_id);
 DELETE FROM matcher_event_log WHERE cloudevents_id IN (SELECT cloudevents_id FROM lt_event);
+DROP INDEX loadtest_cleanup_matched_event;
 DELETE FROM inbound_event_log WHERE cloudevents_id IN (SELECT cloudevents_id FROM lt_event);
 COMMIT;
 SQL
