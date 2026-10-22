@@ -22,6 +22,10 @@ fails is the breaking point. It stops early if errors pass 10%. A stress run lea
 | Test | What it tests |
 |---|---|
 | `adaptor/openhim.js` | OpenHIM emitter adaptor `POST /inbound` (with the real collector behind it) |
+| `collector/collector.js` | Collector `POST /v1/events` on its own, with the CloudEvent the adaptor sends |
+
+The smoke, load and stress settings and their pass/fail rules live in `lib/` (`smoke.js`, `load.js`,
+`stress.js`), and `lib/options.js` picks one by `PROFILE`, so every test uses the same rules.
 
 At the end k6 prints a summary; each threshold shows ✓ or ✗, and the run exits non-zero if any fails.
 

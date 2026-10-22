@@ -4,6 +4,10 @@
     "clientId": "ebuzima-emr-client",
     "facilityId": "0234"
   },
+  "collector": {
+    "baseUrl": "http://localhost:8080",
+    "facilityId": "0234"
+  },
   "db": {
     "host": "localhost",
     "port": 5433,
