@@ -55,13 +55,16 @@ export function setup() {
 export default function () {
   // New IDs on every request; LOADTEST- marks the data as load-test data.
   const id = `${Date.now()}-${__VU}-${__ITER}`;
+  // Visit dated now, so protocol deadlines are in the future and Step SLA records no misses.
+  const start = new Date();
+  const end = new Date(start.getTime() + 15 * 60 * 1000);
   const encounter = {
     resourceType: 'Encounter',
     id: `LOADTEST-ENC-${id}`,
     status: 'finished',
     class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB' },
     subject: { reference: `Patient/LOADTEST-${id}` },
-    period: { start: '2026-09-30T06:00:00Z', end: '2026-09-30T06:15:00Z' },
+    period: { start: start.toISOString(), end: end.toISOString() },
   };
 
   const res = http.post(`${config.baseUrl}/inbound`, JSON.stringify(encounter), {
