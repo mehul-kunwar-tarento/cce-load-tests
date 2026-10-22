@@ -1,0 +1,13 @@
+{
+  "openhimAdaptor": {
+    "baseUrl": "http://localhost:8082",
+    "clientId": "ebuzima-emr-client",
+    "facilityId": "0234"
+  },
+  "db": {
+    "host": "localhost",
+    "port": 5433,
+    "name": "ccedb",
+    "user": "cce_user"
+  }
+}
