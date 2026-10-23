@@ -8,6 +8,12 @@
     "baseUrl": "http://localhost:8080",
     "facilityId": "0234"
   },
+  "matcher": {
+    "kafkaBrokers": ["localhost:9092"],
+    "topic": "cce.events.inbound",
+    "metricsUrl": "http://localhost:8091/actuator/prometheus",
+    "facilityId": "0234"
+  },
   "db": {
     "host": "localhost",
     "port": 5433,

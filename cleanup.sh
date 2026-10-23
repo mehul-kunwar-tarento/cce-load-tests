@@ -41,8 +41,12 @@ CREATE TEMP TABLE lt_protocol_instance AS
   SELECT id FROM protocol_instance WHERE patient_id LIKE 'LOADTEST-%';
 CREATE TEMP TABLE lt_step_instance AS
   SELECT id FROM step_instance WHERE protocol_instance_id IN (SELECT id FROM lt_protocol_instance);
+-- Test events: those that came through the collector, plus those the matcher test wrote straight
+-- to Kafka (no collector row, so found by the patient inside the FHIR resource).
 CREATE TEMP TABLE lt_event AS
-  SELECT cloudevents_id FROM inbound_event_log WHERE raw_payload->>'subject' LIKE 'LOADTEST-%';
+  SELECT cloudevents_id FROM inbound_event_log WHERE raw_payload->>'subject' LIKE 'LOADTEST-%'
+  UNION
+  SELECT cloudevents_id FROM matcher_event_log WHERE data->'subject'->>'reference' LIKE 'Patient/LOADTEST-%';
 ANALYZE lt_protocol_instance;
 ANALYZE lt_step_instance;
 ANALYZE lt_event;
@@ -66,7 +70,8 @@ UNION ALL SELECT 'protocol_instance_history', count(*) FROM protocol_instance_hi
 UNION ALL SELECT 'protocol_instance', count(*) FROM lt_protocol_instance
 UNION ALL SELECT 'matcher_event_log', count(*) FROM matcher_event_log
   WHERE cloudevents_id IN (SELECT cloudevents_id FROM lt_event)
-UNION ALL SELECT 'inbound_event_log', count(*) FROM lt_event;
+UNION ALL SELECT 'inbound_event_log', count(*) FROM inbound_event_log
+  WHERE cloudevents_id IN (SELECT cloudevents_id FROM lt_event);
 SQL
 
 read -r -p "Delete these rows? Type yes: " answer

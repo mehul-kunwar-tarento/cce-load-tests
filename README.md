@@ -4,7 +4,9 @@ k6 load tests for the CCE services. Each service is tested on its own; an end-to
 
 ## How to run
 
-Only Docker is needed: `run.sh` runs k6 from the `grafana/k6` image, at a fixed version.
+Only Docker is needed: `run.sh` runs k6 from our own image (`docker/Dockerfile`: k6 2.3.0 plus the
+xk6-kafka 2.2.0 extension, which the matcher test uses to write to Kafka). The first run on a machine
+builds it (about a minute, needs internet); later runs reuse it.
 
 ```bash
 ./run.sh <env> <test>                    # e.g. ./run.sh local adaptor/openhim.js  (smoke, then load)
@@ -28,6 +30,7 @@ leaves a lot of data; wait for the matcher's Kafka lag to reach 0 before running
 |---|---|
 | `adaptor/openhim.js` | OpenHIM emitter adaptor `POST /inbound` (with the real collector behind it) |
 | `collector/collector.js` | Collector `POST /v1/events` on its own, with the CloudEvent the adaptor sends |
+| `matcher/matcher.js` | Matcher: writes the CloudEvent straight to Kafka; a watcher reads `cce_events_processed_total` every 5 s for backlog and throughput. Stops if nothing is processed for 30 s. The counter counts all traffic, so on a shared server other events make the matcher look faster |
 
 The smoke, load and stress settings and their pass/fail rules live in `lib/` (`smoke.js`, `load.js`,
 `stress.js`), and `lib/options.js` picks one by `PROFILE`, so every test uses the same rules.

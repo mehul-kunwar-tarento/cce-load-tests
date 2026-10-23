@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Runs a k6 test with the k6 Docker image, so k6 itself doesn't need installing.
+# Runs a k6 test in Docker, so k6 itself doesn't need installing.
 #
 # Run: ./run.sh <env> <test> [k6 options]      e.g. ./run.sh local adaptor/openhim.js
-# Needs: docker.
+# Needs: docker (and internet the first time, to build the image).
 set -euo pipefail
 
-K6_IMAGE=grafana/k6:2.3.0   # fixed version, so every environment runs the same k6
+# Our own k6 image: k6 2.3.0 plus Kafka support (docker/Dockerfile). Fixed versions, so every
+# environment runs the same k6. The tag changes whenever the Dockerfile's versions change.
+K6_IMAGE=cce-load-tests/k6:2.3.0-kafka2.2.0
 
 ENV_NAME=${1:-}
 TEST=${2:-}
@@ -20,6 +22,12 @@ if [[ ! -f "env/${ENV_NAME}.json" || ! -f "$TEST" ]]; then
   exit 1
 fi
 shift 2
+
+# Build the image once per server (about a minute); later runs reuse it.
+if ! docker image inspect "$K6_IMAGE" >/dev/null 2>&1; then
+  echo "Building $K6_IMAGE (first run on this machine)..."
+  docker build -t "$K6_IMAGE" docker/
+fi
 
 echo "Environment: $ENV_NAME (env/${ENV_NAME}.json)"
 echo "Test:        $TEST"
