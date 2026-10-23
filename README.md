@@ -7,17 +7,22 @@ k6 load tests for the CCE services. Each service is tested on its own; an end-to
 Only Docker is needed: `run.sh` runs k6 from the `grafana/k6` image, at a fixed version.
 
 ```bash
-./run.sh <env> <test>                    # e.g. ./run.sh local adaptor/openhim.js
+./run.sh <env> <test>                    # e.g. ./run.sh local adaptor/openhim.js  (smoke, then load)
 ./run.sh <env> <test> -e PROFILE=smoke   # smoke only (30 s)
-./run.sh <env> <test> -e PROFILE=stress  # smoke, then a staircase to find the breaking point
+./run.sh <env> <test> -e PROFILE=stress  # smoke, then stress
 ```
 
-Each test has two parts. The **smoke** run (1 request/s for 30 s) checks the script and setup; if it
-fails, k6 stops at once. The **load** run (the target rate for 5 minutes) starts right after it.
-The **stress** profile instead climbs 100 → 200 → 400 → 600 → 800 → 1000 requests/s, 1 minute each,
-and the summary shows pass/fail per level (`stress_100`, `stress_200`, ...); the first level that
-fails is the breaking point. It stops early if errors pass 10%. A stress run leaves a lot of data
-(about 186,000 events); wait for the matcher's Kafka lag to reach 0 before running `cleanup.sh`.
+The rates come from the expected traffic: 600,000 events a day, about 7/s on average and 50/s in
+10-minute peaks (cce-data-pipeline docs §7.1).
+
+| Profile | Rate | Duration | Passing means |
+|---|---|---|---|
+| smoke | 1/s | 30 s | the script and setup work; if it fails, k6 stops at once |
+| load (default) | 50/s, the expected peak | 10 min | the service handles a normal busy period |
+| stress | 200/s, 4× the peak | 10 min | the service handled 120,000 events in 10 minutes |
+
+Load and stress use the same pass/fail rules. A stress run stops early if errors pass 10%. It
+leaves a lot of data; wait for the matcher's Kafka lag to reach 0 before running `cleanup.sh`.
 
 | Test | What it tests |
 |---|---|
