@@ -8,31 +8,8 @@
 set -euo pipefail
 
 ENV_NAME=${1:-}
-CONFIG="$(dirname "$0")/env/${ENV_NAME}.json"
-
-if [[ "$ENV_NAME" == "prod" ]]; then
-  echo "Prod is not allowed yet (see README, Open items)." >&2
-  exit 1
-fi
-if [[ -z "$ENV_NAME" || ! -f "$CONFIG" ]]; then
-  echo "Usage: DB_PASSWORD=<password> $0 <env>   (env = a file name in env/, e.g. local)" >&2
-  exit 1
-fi
-if [[ -z "${DB_PASSWORD:-}" ]]; then
-  echo "Set DB_PASSWORD for the $ENV_NAME database." >&2
-  exit 1
-fi
-
-# Runs psql against the environment's database, using the details in env/<env>.json.
-run_psql() {
-  docker run --rm -i --network host \
-    -e PGHOST="$(jq -r .db.host "$CONFIG")" \
-    -e PGPORT="$(jq -r .db.port "$CONFIG")" \
-    -e PGDATABASE="$(jq -r .db.name "$CONFIG")" \
-    -e PGUSER="$(jq -r .db.user "$CONFIG")" \
-    -e PGPASSWORD="$DB_PASSWORD" \
-    postgres:16-alpine psql -X -q -v ON_ERROR_STOP=1 "$@"
-}
+source "$(dirname "$0")/lib/db.sh"
+db_init "$ENV_NAME" "DB_PASSWORD=<password> $0 <env>"
 
 # The load-test rows: patients, their enrolments and steps, and the events they sent.
 # Temp tables last only for one psql run.

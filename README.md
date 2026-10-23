@@ -32,6 +32,22 @@ leaves a lot of data; wait for the matcher's Kafka lag to reach 0 before running
 | `collector/collector.js` | Collector `POST /v1/events` on its own, with the CloudEvent the adaptor sends |
 | `matcher/matcher.js` | Matcher: writes the CloudEvent straight to Kafka; a watcher reads `cce_events_processed_total` every 5 s for backlog and throughput. Stops if nothing is processed for 30 s. The counter counts all traffic, so on a shared server other events make the matcher look faster |
 
+| `step-sla/step-sla.js` | Step SLA: the work is seeded straight into the database (see below); this only watches it being handled |
+
+**Step SLA** reads only the database, so its test seeds deadline alarms there instead of sending events:
+
+```bash
+DB_PASSWORD=<password> ./seed-sla.sh <env> <smoke|load|stress|storm>   # alarms ring from 60 s later
+./run.sh <env> step-sla/step-sla.js                                     # watch them being handled
+DB_PASSWORD=<password> ./report-sla.sh <env>                            # PASS/FAIL from each alarm's wait
+```
+
+`seed-sla.sh` copies the rows the matcher writes for an Encounter (enrolment, deadline step, its DUE
+and MISSED alarms). The ring times set the load: smoke 30 at 1/s, load 30,000 at 50/s, stress 120,000
+at 200/s, storm 100,000 all at once. `report-sla.sh` passes when every alarm was handled and the
+longest wait after ringing is under 2 check intervals (`stepSla.pollIntervalSeconds`; storm: 300 s).
+Run it before `cleanup.sh`, and run `cleanup.sh` only once Step SLA has nothing due, or the two collide.
+
 The smoke, load and stress settings and their pass/fail rules live in `lib/` (`smoke.js`, `load.js`,
 `stress.js`), and `lib/options.js` picks one by `PROFILE`, so every test uses the same rules.
 

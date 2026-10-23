@@ -14,6 +14,12 @@
     "metricsUrl": "http://localhost:8091/actuator/prometheus",
     "facilityId": "0234"
   },
+  "stepSla": {
+    "metricsUrl": "http://localhost:8092/actuator/prometheus",
+    "protocolUrl": "http://openphc.org/PlanDefinition/demo-visit-followup",
+    "actionId": "bp-check",
+    "pollIntervalSeconds": 5
+  },
   "db": {
     "host": "localhost",
     "port": 5433,
