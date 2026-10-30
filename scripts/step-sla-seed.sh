@@ -11,15 +11,15 @@
 #   storm   100,000 alarms, all ringing at the same moment
 # The first alarm rings 60 s after the insert, so start the k6 watcher straight after this script.
 #
-# Run: DB_PASSWORD=<password> ./seed-sla.sh <env> <smoke|load|stress|storm>
+# Run: DB_PASSWORD=<password> ./scripts/step-sla-seed.sh <env> <smoke|load|stress|storm>
 # Writes step-sla/last-seed.json (run id, count and ring times), which step-sla/step-sla.js and
-# report-sla.sh read.
+# scripts/step-sla-report.sh read.
 set -euo pipefail
 
 ENV_NAME=${1:-}
 PROFILE=${2:-}
-cd "$(dirname "$0")"
-source lib/db.sh
+cd "$(dirname "$0")/.."   # the repo root: env/, results/, step-sla/ are relative to it
+source scripts/postgres-connection.sh
 db_init "$ENV_NAME" "DB_PASSWORD=<password> $0 <env> <smoke|load|stress|storm>"
 
 case "$PROFILE" in
@@ -47,7 +47,7 @@ fi
 echo "Seeding $COUNT alarms ($PROFILE) for protocol $PROTOCOL_URL, step $ACTION_ID..."
 
 # One transaction: all rows or none. The visit is dated 14 days before the alarm, as the matcher would
-# date it; the MISSED alarm rings 3 days later, after the test, and cleanup.sh deletes it.
+# date it; the MISSED alarm rings 3 days later, after the test, and scripts/cleanup-test-data.sh deletes it.
 RESULT=$(run_psql -tA -v count="$COUNT" -v rate="$RATE" -v run="$RUN_ID" \
   -v protocol_id="$PROTOCOL_ID" -v action="$ACTION_ID" <<'SQL'
 BEGIN;
@@ -92,4 +92,4 @@ jq -n --arg env "$ENV_NAME" --arg profile "$PROFILE" --arg runId "$RUN_ID" --arg
 NOW_MS=$(( $(date +%s%N) / 1000000 ))
 echo "Seeded $SEEDED alarms: first rings in $(( (RING_START - NOW_MS) / 1000 )) s, last in $(( (RING_END - NOW_MS) / 1000 )) s."
 echo "Start the watcher now: ./run.sh $ENV_NAME step-sla/step-sla.js"
-echo "When it ends:          DB_PASSWORD=... ./report-sla.sh $ENV_NAME"
+echo "When it ends:          DB_PASSWORD=... ./scripts/step-sla-report.sh $ENV_NAME"

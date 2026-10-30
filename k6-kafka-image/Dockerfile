@@ -1,7 +1,7 @@
 # k6 with Kafka support (xk6-kafka), used by run.sh for every test.
 # The official grafana/k6 image has no Kafka support, so we build our own k6 binary with xk6.
 #
-# Build: docker build -t cce-load-tests/k6:2.3.0-kafka2.2.0 docker/   (run.sh does this when the image is missing)
+# Build: docker build -t cce-load-tests/k6:2.3.0-kafka2.2.0 k6-kafka-image/   (run.sh does this when the image is missing)
 
 # Step 1: build the k6 binary with the Kafka extension.
 # - xk6-kafka v2.x is the line built for k6 v2 (v1.x only works with k6 v1).

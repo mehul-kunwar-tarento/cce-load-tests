@@ -1,18 +1,17 @@
 {
-  "openhimAdaptor": {
-    "baseUrl": "http://localhost:8082",
-    "clientId": "ebuzima-emr-client",
-    "facilityId": "0234"
-  },
-  "collector": {
-    "baseUrl": "http://localhost:8080",
-    "facilityId": "0234"
-  },
   "matcher": {
-    "kafkaBrokers": ["localhost:9092"],
+    "kafkaBrokers": [
+      "localhost:9092"
+    ],
     "topic": "cce.events.inbound",
     "metricsUrl": "http://localhost:8091/actuator/prometheus",
-    "facilityId": "0234"
+    "facilityId": "0234",
+    "recordsPerEvent": {
+      "matcher_event_log": 1,
+      "protocol_instance": 1,
+      "step_instance": 2,
+      "step_sla_state_transition": 2
+    }
   },
   "stepSla": {
     "metricsUrl": "http://localhost:8092/actuator/prometheus",

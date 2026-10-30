@@ -1,4 +1,4 @@
-// Load test for Step SLA. The work is seeded straight into the database by seed-sla.sh: test steps whose
+// Load test for Step SLA. The work is seeded straight into the database by scripts/step-sla-seed.sh: test steps whose
 // deadline alarms ring at set times. This script only watches Step SLA handle them.
 //
 // Flow:
@@ -12,10 +12,10 @@
 //   readMetrics()  reads the numbers off /actuator/prometheus
 // Pass here: every seeded alarm handled, all handled < 30 s after the last alarm rang (storm: < 5 min).
 // The backlog is shown for information only: it depends on when the watcher looks (just before a
-// 5 s check, 200/s already means 1,000 waiting). The real pass/fail is report-sla.sh: each alarm's wait.
+// 5 s check, 200/s already means 1,000 waiting). The real pass/fail is scripts/step-sla-report.sh: each alarm's wait.
 //
-// Run: DB_PASSWORD=<password> ./seed-sla.sh local stress && ./run.sh local step-sla/step-sla.js
-//      then DB_PASSWORD=<password> ./report-sla.sh local
+// Run: DB_PASSWORD=<password> ./scripts/step-sla-seed.sh local stress && ./run.sh local step-sla/step-sla.js
+//      then DB_PASSWORD=<password> ./scripts/step-sla-report.sh local
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
@@ -27,7 +27,7 @@ if (!__ENV.ENV) {
 const config = JSON.parse(open(`../env/${__ENV.ENV}.json`)).stepSla;
 const seed = JSON.parse(open('./last-seed.json'));
 if (seed.env !== __ENV.ENV) {
-  throw new Error(`last-seed.json was seeded for ${seed.env}, not ${__ENV.ENV}: run seed-sla.sh first`);
+  throw new Error(`last-seed.json was seeded for ${seed.env}, not ${__ENV.ENV}: run scripts/step-sla-seed.sh first`);
 }
 
 const WATCH_EVERY = 5; // seconds between two reads of Step SLA's metrics
@@ -75,7 +75,7 @@ export function setup() {
   const inSeconds = (ms) => Math.round((ms - Date.now()) / 1000);
   console.log(`Watching ${config.metricsUrl}: ${seed.count} alarms (${seed.profile}), first rings in ${inSeconds(seed.ringStart)} s, last in ${inSeconds(seed.ringEnd)} s`);
   if (seed.ringEnd + CATCH_UP_LIMIT * 1000 < Date.now()) {
-    throw new Error('last-seed.json is from an earlier run (its alarms rang long ago): run seed-sla.sh again');
+    throw new Error('last-seed.json is from an earlier run (its alarms rang long ago): run scripts/step-sla-seed.sh again');
   }
   return { first: readMetrics() };
 }

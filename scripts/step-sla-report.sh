@@ -8,18 +8,18 @@
 #   storm              pass: every alarm handled, longest wait < 300 s (all 100,000 due at once)
 # Also checks each alarm's step became OVERDUE with one deviation.
 #
-# Run after step-sla/step-sla.js ends: DB_PASSWORD=<password> ./report-sla.sh <env>
-# Exits 1 on FAIL. Run it before cleanup.sh, which deletes the rows it reads.
+# Run after step-sla/step-sla.js ends: DB_PASSWORD=<password> ./scripts/step-sla-report.sh <env>
+# Exits 1 on FAIL. Run it before scripts/cleanup-test-data.sh, which deletes the rows it reads.
 set -euo pipefail
 
 ENV_NAME=${1:-}
-cd "$(dirname "$0")"
-source lib/db.sh
+cd "$(dirname "$0")/.."   # the repo root: env/, results/, step-sla/ are relative to it
+source scripts/postgres-connection.sh
 db_init "$ENV_NAME" "DB_PASSWORD=<password> $0 <env>"
 
 SEED=step-sla/last-seed.json
 if [[ ! -f "$SEED" || "$(jq -r .env "$SEED")" != "$ENV_NAME" ]]; then
-  echo "No seed for $ENV_NAME in $SEED: run seed-sla.sh first." >&2
+  echo "No seed for $ENV_NAME in $SEED: run scripts/step-sla-seed.sh first." >&2
   exit 1
 fi
 PROFILE=$(jq -r .profile "$SEED")

@@ -2,13 +2,13 @@
 # Deletes every row the load tests created: everything linked to a LOADTEST- patient, in every CCE
 # table. Shows the row counts first and deletes only after you type "yes".
 #
-# Run: DB_PASSWORD=<password> ./cleanup.sh <env>      e.g. DB_PASSWORD=cce_pass ./cleanup.sh local
+# Run: DB_PASSWORD=<password> ./scripts/cleanup-test-data.sh <env>      e.g. DB_PASSWORD=cce_pass ./scripts/cleanup-test-data.sh local
 # Needs: docker (psql runs from the postgres image) and jq.
 # Don't run it while a load test is still sending events.
 set -euo pipefail
 
 ENV_NAME=${1:-}
-source "$(dirname "$0")/lib/db.sh"
+source "$(dirname "$0")/postgres-connection.sh"
 db_init "$ENV_NAME" "DB_PASSWORD=<password> $0 <env>"
 
 # The load-test rows: patients, their enrolments and steps, and the events they sent.

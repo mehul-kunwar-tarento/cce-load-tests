@@ -1,6 +1,10 @@
-# Shared by the scripts that talk to an environment's database (cleanup.sh, seed-sla.sh).
-# Source it, then call: db_init <env> "<usage line>"   and use run_psql.
-# Needs: docker (psql runs from the postgres image) and jq.
+# A safe connection to an environment's Postgres, shared by the scripts that read or write the database:
+# scripts/cleanup-test-data.sh, scripts/step-sla-seed.sh, scripts/step-sla-report.sh, scripts/matcher-report.sh.
+#
+# Use:   source scripts/postgres-connection.sh
+#        db_init <env> "<usage line>"     checks first: not prod, env/<env>.json exists, DB_PASSWORD set
+#        run_psql <<SQL ... SQL           runs SQL on that environment's database
+# Needs: docker (psql runs from the postgres image, nothing to install) and jq.
 
 # Checks the environment and the password, and sets CONFIG to env/<env>.json.
 db_init() {

@@ -32,7 +32,7 @@ requests (k6 kept the set rate). A smoke failure stops the test at once.
 **k6 or service?** If k6 drops requests while the service's latency is still low, the sender ran out, not
 the service. The result is then reported as "at least X/s (k6 limit)" (D4).
 
-**Test data:** every test patient starts with `LOADTEST-`; `cleanup.sh` deletes it, and only once the
+**Test data:** every test patient starts with `LOADTEST-`; `scripts/cleanup-test-data.sh` deletes it, and only once the
 services have finished processing. **Results on a laptop are relative**: k6 and every service share one
 machine. Real limits come from Dev and UAT.
 
@@ -45,28 +45,66 @@ machine. Real limits come from Dev and UAT.
 - **How load gets in:** k6 writes the collector's CloudEvent straight to Kafka (xk6-kafka), key = patient.
 - **Measured by:** a watcher reading `cce_events_processed_total` every 5 s: backlog = sent − processed,
   throughput, catch-up time after sending stops.
-- **Load:** 50/s for 10 min. Pass: backlog never above 1,000, cleared < 30 s after sending stops, 0 Kafka
-  write errors.
-- **Stress:** flood: 2,000 events/s for 1 min (120,000), far above what it can read. Maximum throughput =
-  its median events/s while a backlog exists.
-- **Status:** test exists (`matcher/matcher.js`). Load passed (backlog 0). Old stress (200/s) passed;
-  **breaking-point stress to build.** Earlier staircase runs suggest about 260–340/s with its default 3
-  consumer threads.
+- **Load:** 50/s for 10 min.
+- **Stress** (`PROFILE=stress`, `lib/stress.js`): a staircase of rising rates, 100 → 150 → 200 → 250 → 300 →
+  350 → 400 events/s, 1 min each. A step **kept up** if the backlog grew by less than 5% of the events sent
+  in it; the first step that didn't is the breaking point: "kept up at X, broke at Y events/s".
+- **Flood** (`PROFILE=flood`, `lib/flood.js`): 2,000 events/s for 1 min (120,000), far above what it can
+  read; its exact maximum = median events/s while the backlog stays above 1,000: "broke above Z events/s".
+  The staircase shows how it behaves as traffic grows, the flood gives the precise number (D14).
+- **Thresholds** (all must hold; *proposed* = no documented number, team to agree):
+
+  | Rule | k6 metric | smoke | load | stress | flood |
+  |---|---|---|---|---|---|
+  | Backlog never above 1,000 events (*proposed*) | `matcher_backlog` `max<1000` | ✓ | ✓ | — | — |
+  | Backlog cleared < 30 s after sending stops (*proposed*) | `matcher_catch_up_seconds` `max<30` | ✓ | ✓ | — | — |
+  | 0 Kafka write errors | `kafka_writer_error_count` `count==0` | ✓ | ✓ | ✓ | ✓ |
+  | Nothing dropped (k6 kept the rate) | `dropped_iterations` `count==0` | ✓ | ✓ | ✓ | ✓ |
+  | Every sent event processed | check, `checks` > 99% | ✓ | ✓ | ✓ | ✓ |
+  | **Every sent event created its records** | `scripts/matcher-report.sh` (database) | ✓ | ✓ | ✓ | ✓ |
+  | Metrics page answered | check, `http_req_failed` < 1% | ✓ | ✓ | ✓ | ✓ |
+  | Safety stop: nothing processed for 30 s with events waiting | stall stop | ✓ | ✓ | ✓ | ✓ |
+  | Safety stop: counter went down (restart) | restart stop | ✓ | ✓ | ✓ | ✓ |
+
+  "Processed" comes from the matcher's counter, which also goes up for a duplicate, a zero match or a
+  half-done event. So after the run `scripts/matcher-report.sh` counts this run's test patients in the database:
+  for N events sent it expects N `matcher_event_log`, N `protocol_instance`, 2N `step_instance` and 2N
+  `step_sla_state_transition` rows (the demo protocol: visit + bp-check, DUE + MISSED alarms; per-event
+  numbers in `env/<env>.json`, as they depend on the protocol). N comes from k6's own count of Kafka writes.
+  Patients are `LOADTEST-MATCH-<run id>-…` so a run's rows can be told apart (D13).
+
+  Stress and flood break the first two on purpose, so they don't use them; their result is the breaking point.
+  The shared "p95 < 500 ms" isn't used: the only HTTP here is the watcher reading the metrics page.
+- **Status:** load passed (backlog 0). Stress (staircase): **to run.** **Flood, 30 Oct, local: broke above
+  274 events/s (5.5 × the peak).**
+  120,033 events; throughput while saturated min 92 / median 274 / max 302 events/s; backlog cleared 411 s
+  after the flood; 8.7 ms per event; with the matcher's default 3 Kafka consumer threads.
 
 ### 2.2 Step SLA
 
 - **What it does:** every 5 s (15 s on prod) finds deadline alarms that have rung, marks the step OVERDUE or
   MISSED, writes a deviation.
-- **How load gets in:** `seed-sla.sh` inserts test steps and their alarms straight into Postgres; the ring
+- **How load gets in:** `scripts/step-sla-seed.sh` inserts test steps and their alarms straight into Postgres; the ring
   times set the load. Nothing is sent during the test.
-- **Measured by:** a watcher on `cce_sla_transitions_due` and the handled counters, then `report-sla.sh`:
+- **Measured by:** a watcher on `cce_sla_transitions_due` and the handled counters, then `scripts/step-sla-report.sh`:
   each alarm's wait from ringing to handled (`processed_at − process_by`).
-- **Load:** 30,000 alarms ringing 50/s. Pass: every alarm handled, longest wait < 2 check intervals
-  (10 s locally, 30 s on prod), each step OVERDUE with one deviation.
-- **Stress:** storm: 100,000 alarms ringing at the same moment. Maximum throughput = alarms handled per
-  second while they drain. Pass: all cleared < 5 min.
-- **Status:** test exists. Load and storm passed (storm: 100,000 in 77.5 s, about 1,290/s).
-  **To add:** the storm's throughput in the report.
+- **Load:** 30,000 alarms ringing 50/s for 10 min. **Stress:** storm: 100,000 alarms ringing at the same
+  moment; the breaking point = alarms handled per second while they drain.
+- **Thresholds** (all must hold; *proposed* = no documented number, team to agree):
+
+  | Rule | Where | smoke | load | stress (storm) |
+  |---|---|---|---|---|
+  | Longest wait after an alarm rings (*proposed*) | `scripts/step-sla-report.sh` (`processed_at − process_by`) | < 2 check intervals (10 s locally, 30 s on prod) | < 2 check intervals | < 300 s |
+  | Every seeded alarm handled | `scripts/step-sla-report.sh` + check | ✓ | ✓ | ✓ |
+  | Each step OVERDUE with exactly one deviation | `scripts/step-sla-report.sh` | ✓ | ✓ | ✓ |
+  | All handled soon after the last alarm rang (*proposed*) | `step_sla_catch_up_seconds` | `max<30` | `max<30` | `max<300` |
+  | Metrics page answered | check, `http_req_failed` < 1% | ✓ | ✓ | ✓ |
+  | Safety stop: nothing handled for 30 s with alarms due | stall stop | ✓ | ✓ | ✓ |
+  | Safety stop: counter went down (restart) | restart stop | ✓ | ✓ | ✓ |
+
+  No "alarms waiting < N" rule: that count depends on when it is read (D8); the wait per alarm replaces it.
+- **Status:** load and storm passed (23 Oct; storm: 100,000 in 77.5 s, about 1,290/s). **To add:** the storm's
+  alarms per second printed by the report as its breaking point.
 
 ### 2.3 End to end
 
@@ -98,7 +136,7 @@ machine. Real limits come from Dev and UAT.
 |---|---|---|
 | Data pipeline (Debezium, Kafka, ClickHouse) | infrastructure, not a CCE service. A test was written and its smoke passed (freshness about 9 s); kept out of the plan. Found on the way: the alert `e2e-latency-high` measures clinic → collector, not the pipeline | 30 Oct |
 | Insights UI | only static files; its load is the Insights API's | 30 Oct |
-| OpenHIM adaptor, Collector | not tested for now; their tests stay in the repo (`adaptor/openhim.js`, `collector/collector.js`, last run on older profiles). End to end (2.3) still sends its traffic through them | 30 Oct |
+| OpenHIM adaptor, Collector | not tested for now. Their tests were removed from the repo on 30 Oct; git history keeps them (`adaptor/openhim.js` from f4bc725, `collector/collector.js` from da3e99f). End to end (2.3) still sends its traffic through both | 30 Oct |
 | TibERbu adaptor | deferred; same shape as the OpenHIM adaptor test when picked up | 22 Oct |
 | Protocol service | left for now. Loads protocol definitions, a rare admin action; no event traffic passes through it | 30 Oct |
 | Scheduler | left for now. A 1.x service; in release 2.0 Step SLA does its job | 30 Oct |
@@ -117,6 +155,8 @@ machine. Real limits come from Dev and UAT.
 | D10 | 30 Oct | Only the CCE services are tested, plus one end-to-end run across them. OpenHIM adaptor and Collector not tested for now. Data pipeline and Insights UI out; Insights API discussed later; Protocol, Scheduler, Gateway left for now |
 | D11 | 30 Oct | End to end: 10% of visits dated 20 days back so Step SLA has work; one setting (`PAST_DATED_PERCENT`, default 10), changeable per run |
 | D12 | 30 Oct | End to end passes when event → enrolment p95 < 10 s; one setting (`ENROLMENT_LIMIT_SECONDS`, default 10) |
+| D13 | 30 Oct | Matcher: a database check after every run (`scripts/matcher-report.sh`): every sent event created its records; `run.sh` gives each run an id and saves k6's summary |
+| D14 | 30 Oct | Matcher has two breaking-point profiles: `stress` = staircase 100 → 400/s, 1 min per step, a step kept up if its backlog grew < 5% of what it was sent; `flood` = 2,000/s for 1 min, maximum throughput. `lib/stress.js` rewritten as the staircase; `lib/options.js` offers smoke, full, stress, flood |
 | D7 | 23 Oct | Load = expected peak, 50/s for 10 min |
 | D8 | 23 Oct | Step SLA passes on each alarm's wait, not on a count of alarms waiting |
 | D9 | 22 Oct | Prod: no tests until discussed |
