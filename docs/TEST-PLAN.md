@@ -103,8 +103,9 @@ machine. Real limits come from Dev and UAT.
   | Safety stop: counter went down (restart) | restart stop | ✓ | ✓ | ✓ |
 
   No "alarms waiting < N" rule: that count depends on when it is read (D8); the wait per alarm replaces it.
-- **Status:** load and storm passed (23 Oct; storm: 100,000 in 77.5 s, about 1,290/s). **To add:** the storm's
-  alarms per second printed by the report as its breaking point.
+- **Status:** load passed (23 Oct). **Storm, 30 Oct, local: breaking point about 1,351 alarms/s (27 × the
+  peak)**: 100,000 cleared in 74 s after they rang; wait avg 38.5 s, longest 74 s. `step-sla-report.sh`
+  prints this line for every storm.
 
 ### 2.3 End to end
 

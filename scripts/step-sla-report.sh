@@ -26,12 +26,18 @@ PROFILE=$(jq -r .profile "$SEED")
 COUNT=$(jq -r .count "$SEED")
 RUN_ID=$(jq -r .runId "$SEED")
 POLL=$(jq -r .stepSla.pollIntervalSeconds "$CONFIG")
-if [[ "$PROFILE" == "storm" ]]; then MAX_WAIT=300; else MAX_WAIT=$(( 2 * POLL )); fi
+# Longest wait allowed: 2 check intervals (10 s locally), or 5 min for a storm (100,000 at once).
+MAX_WAIT=$(( 2 * POLL ))
+if [[ "$PROFILE" == "storm" ]]; then
+  MAX_WAIT=300
+fi
+PEAK=50 # the expected peak, events per second (lib/load.js), to say how many times the peak a rate is
 
-# handled | OVERDUE steps | deviations | wait avg | p95 | max (seconds), for this run's patients only
+# For this run's patients only:
+# handled | OVERDUE steps | deviations | wait avg | p95 | max | seconds from the first ring to the last handled
 RESULT=$(run_psql -tA -v prefix="LOADTEST-SLA-${RUN_ID}-%" <<'SQL'
 WITH alarm AS (
-  SELECT t.is_processed, s.sla_status, s.id AS step_id,
+  SELECT t.is_processed, s.sla_status, s.id AS step_id, t.process_by, t.processed_at,
          extract(epoch FROM t.processed_at - t.process_by) AS wait
   FROM protocol_instance p
   JOIN step_instance s ON s.protocol_instance_id = p.id
@@ -43,21 +49,45 @@ SELECT count(*) FILTER (WHERE is_processed),
        (SELECT count(*) FROM deviation d WHERE d.step_instance_id IN (SELECT step_id FROM alarm)),
        round(avg(wait)::numeric, 1),
        round((percentile_cont(0.95) WITHIN GROUP (ORDER BY wait))::numeric, 1),
-       round(max(wait)::numeric, 1)
+       round(max(wait)::numeric, 1),
+       round(extract(epoch FROM max(processed_at) - min(process_by))::numeric, 1)
 FROM alarm;
 SQL
 )
-IFS='|' read -r HANDLED OVERDUE DEVIATIONS AVG P95 MAX <<< "$RESULT"
+IFS='|' read -r HANDLED OVERDUE DEVIATIONS AVG P95 MAX CLEAR_SECONDS <<< "$RESULT"
 
 echo "Step SLA report: $PROFILE, $COUNT alarms (run $RUN_ID, env $ENV_NAME)"
 echo "  handled        $HANDLED / $COUNT"
 echo "  OVERDUE steps  $OVERDUE,  deviations $DEVIATIONS"
 echo "  wait after ringing: avg ${AVG:-?} s, p95 ${P95:-?} s, max ${MAX:-?} s   (rule: max < $MAX_WAIT s)"
 
-PASS=true
-[[ "$HANDLED" == "$COUNT" ]] || { echo "  FAIL: not every alarm was handled"; PASS=false; }
-[[ "$OVERDUE" == "$COUNT" && "$DEVIATIONS" == "$COUNT" ]] || { echo "  FAIL: expected $COUNT OVERDUE steps and deviations"; PASS=false; }
-if [[ -z "$MAX" ]] || awk -v m="$MAX" -v l="$MAX_WAIT" 'BEGIN { exit !(m >= l) }'; then
-  echo "  FAIL: longest wait ${MAX:-unknown} s is not under $MAX_WAIT s"; PASS=false
+# Storm: its breaking point = how many alarms per second it got through while clearing the pile
+# (test plan 2.2): every alarm handled, divided by the time from the moment they rang to the last one handled.
+if [[ "$PROFILE" == "storm" && -n "$CLEAR_SECONDS" ]]; then
+  RATE=$(awk -v n="$HANDLED" -v s="$CLEAR_SECONDS" 'BEGIN { printf "%d", n / s }')
+  TIMES_PEAK=$(awk -v r="$RATE" -v p="$PEAK" 'BEGIN { printf "%.1f", r / p }')
+  echo "  Step SLA breaking point: about $RATE alarms/s ($TIMES_PEAK × the $PEAK/s peak):"
+  echo "  $HANDLED alarms cleared in $CLEAR_SECONDS s after they rang"
 fi
-if $PASS; then echo "  PASS"; else exit 1; fi
+
+PASS=true
+if [[ "$HANDLED" != "$COUNT" ]]; then
+  echo "  FAIL: not every alarm was handled"
+  PASS=false
+fi
+if [[ "$OVERDUE" != "$COUNT" || "$DEVIATIONS" != "$COUNT" ]]; then
+  echo "  FAIL: expected $COUNT OVERDUE steps and deviations"
+  PASS=false
+fi
+# Bash can't compare decimals, so awk does it: is the longest wait at or above the limit?
+WAIT_TOO_LONG=$(awk -v m="${MAX:-999999}" -v l="$MAX_WAIT" 'BEGIN { if (m >= l) print "yes"; else print "no" }')
+if [[ -z "$MAX" || "$WAIT_TOO_LONG" == "yes" ]]; then
+  echo "  FAIL: longest wait ${MAX:-unknown} s is not under $MAX_WAIT s"
+  PASS=false
+fi
+
+if $PASS; then
+  echo "  PASS"
+else
+  exit 1
+fi
