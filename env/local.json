@@ -9,15 +9,17 @@
     "facilityId": "0234"
   },
   "matcher": {
-    "kafkaBrokers": ["localhost:9092"],
+    "kafkaBrokers": [
+      "localhost:9092"
+    ],
     "topic": "cce.events.inbound",
     "metricsUrl": "http://localhost:8091/actuator/prometheus",
     "facilityId": "0234"
   },
   "stepSla": {
     "metricsUrl": "http://localhost:8092/actuator/prometheus",
-    "protocolUrl": "http://openphc.org/PlanDefinition/demo-visit-followup",
-    "actionId": "bp-check",
+    "protocolUrl": "http://openphc.org/PlanDefinition/emr-service-protocol",
+    "actionId": "vitals-recording",
     "pollIntervalSeconds": 5
   },
   "db": {
@@ -25,5 +27,10 @@
     "port": 5433,
     "name": "ccedb",
     "user": "cce_user"
+  },
+  "protocol": {
+    "baseUrl": "http://localhost:8090",
+    "url": "http://openphc.org/PlanDefinition/emr-service-protocol",
+    "version": "1.0.0"
   }
 }

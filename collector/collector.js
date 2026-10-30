@@ -5,6 +5,7 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import { optionsFor } from '../lib/options.js';
+import { visitEncounter } from '../lib/ebuzima.js';
 
 if (!__ENV.ENV) {
   throw new Error('Choose an environment, e.g. -e ENV=local');
@@ -19,11 +20,10 @@ export function setup() {
 }
 
 export default function () {
-  // New IDs on every request; LOADTEST- marks the data as load-test data.
-  const id = `${Date.now()}-${__VU}-${__ITER}`;
-  // Visit dated now, so protocol deadlines are in the future and Step SLA records no misses.
-  const start = new Date();
-  const end = new Date(start.getTime() + 15 * 60 * 1000);
+  // A new patient on every request; LOADTEST- marks the data as load-test data. Dated now, so the
+  // protocol's deadlines are in the future and Step SLA records no misses.
+  const patient = `LOADTEST-${Date.now()}-${__VU}-${__ITER}`;
+  const encounter = visitEncounter(patient, config.facilityId);
 
   // The same envelope the OpenHIM adaptor builds. The collector treats a repeated id + source as a
   // duplicate and skips the database write and Kafka publish, so the id must be new every time.
@@ -32,18 +32,11 @@ export default function () {
     id: crypto.randomUUID(),
     source: 'ebuzima',
     type: 'Encounter',
-    subject: `LOADTEST-${id}`,
-    time: start.toISOString(),
+    subject: patient,
+    time: encounter.period.start,
     facilityid: config.facilityId,
     datacontenttype: 'application/fhir+json',
-    data: {
-      resourceType: 'Encounter',
-      id: `LOADTEST-ENC-${id}`,
-      status: 'finished',
-      class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB' },
-      subject: { reference: `Patient/LOADTEST-${id}` },
-      period: { start: start.toISOString(), end: end.toISOString() },
-    },
+    data: encounter,
   };
 
   const res = http.post(`${config.baseUrl}/v1/events`, JSON.stringify(event), {

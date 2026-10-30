@@ -1,0 +1,36 @@
+{
+  "openhimAdaptor": {
+    "baseUrl": "http://localhost:8092",
+    "clientId": "ebuzima-emr-client",
+    "facilityId": "0234"
+  },
+  "collector": {
+    "baseUrl": "http://localhost:8093",
+    "facilityId": "0234"
+  },
+  "matcher": {
+    "kafkaBrokers": [
+      "localhost:29092"
+    ],
+    "topic": "cce.events.inbound",
+    "metricsUrl": "http://localhost:8097/actuator/prometheus",
+    "facilityId": "0234"
+  },
+  "stepSla": {
+    "metricsUrl": "http://localhost:8099/actuator/prometheus",
+    "protocolUrl": "http://openphc.org/PlanDefinition/emr-service-protocol",
+    "actionId": "vitals-recording",
+    "pollIntervalSeconds": 5
+  },
+  "db": {
+    "host": "localhost",
+    "port": 15432,
+    "name": "ccedb",
+    "user": "cce_user"
+  },
+  "protocol": {
+    "baseUrl": "http://localhost:8096",
+    "url": "http://openphc.org/PlanDefinition/emr-service-protocol",
+    "version": "1.0.0"
+  }
+}

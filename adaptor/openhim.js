@@ -1,10 +1,12 @@
-// Load test for the OpenHIM emitter adaptor (eBUZIMA → adaptor → collector).
+// Load test for the OpenHIM emitter adaptor (eBUZIMA → adaptor → collector), one eBUZIMA visit
+// Encounter per request. For the whole flow through the matcher and Step SLA, use flow.sh.
 // Run: ./run.sh local adaptor/openhim.js                    (smoke, then load)
 //      ./run.sh local adaptor/openhim.js -e PROFILE=smoke   (smoke only)
 //      ./run.sh local adaptor/openhim.js -e PROFILE=stress  (smoke, then a staircase to find the breaking point)
 import http from 'k6/http';
 import { check } from 'k6';
 import { optionsFor } from '../lib/options.js';
+import { visitEncounter } from '../lib/ebuzima.js';
 
 if (!__ENV.ENV) {
   throw new Error('Choose an environment, e.g. -e ENV=local');
@@ -19,19 +21,10 @@ export function setup() {
 }
 
 export default function () {
-  // New IDs on every request; LOADTEST- marks the data as load-test data.
-  const id = `${Date.now()}-${__VU}-${__ITER}`;
-  // Visit dated now, so protocol deadlines are in the future and Step SLA records no misses.
-  const start = new Date();
-  const end = new Date(start.getTime() + 15 * 60 * 1000);
-  const encounter = {
-    resourceType: 'Encounter',
-    id: `LOADTEST-ENC-${id}`,
-    status: 'finished',
-    class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB' },
-    subject: { reference: `Patient/LOADTEST-${id}` },
-    period: { start: start.toISOString(), end: end.toISOString() },
-  };
+  // A new patient on every request; LOADTEST- marks the data as load-test data. Dated now, so the
+  // protocol's deadlines are in the future and Step SLA records no misses.
+  const patient = `LOADTEST-${Date.now()}-${__VU}-${__ITER}`;
+  const encounter = visitEncounter(patient, config.facilityId);
 
   const res = http.post(`${config.baseUrl}/inbound`, JSON.stringify(encounter), {
     headers: {

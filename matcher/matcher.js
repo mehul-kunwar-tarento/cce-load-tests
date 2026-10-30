@@ -20,6 +20,7 @@ import { Trend } from 'k6/metrics';
 import exec from 'k6/execution';
 import { Producer } from 'k6/x/kafka';
 import { optionsFor } from '../lib/options.js';
+import { visitEncounter } from '../lib/ebuzima.js';
 
 if (!__ENV.ENV) {
   throw new Error('Choose an environment, e.g. -e ENV=local');
@@ -79,11 +80,11 @@ const processingMs = new Trend('matcher_processing_ms', true); // average time p
 const producer = new Producer({ brokers: config.kafkaBrokers, topic: config.topic });
 
 export default function () {
-  // New IDs on every event; LOADTEST- marks the data as load-test data.
-  const id = `${Date.now()}-${__VU}-${__ITER}`;
-  // Visit dated now, so protocol deadlines are in the future and Step SLA records no misses.
-  const start = new Date();
-  const end = new Date(start.getTime() + 15 * 60 * 1000);
+  // A new patient on every event; LOADTEST- marks the data as load-test data. An eBUZIMA visit
+  // Encounter, which enrols the patient in the eBUZIMA protocol. Dated now, so the protocol's
+  // deadlines are in the future and Step SLA records no misses.
+  const patient = `LOADTEST-${Date.now()}-${__VU}-${__ITER}`;
+  const encounter = visitEncounter(patient, config.facilityId);
 
   // The CloudEvent the collector publishes. The matcher skips a repeated id + source as a duplicate,
   // so the id must be new every time.
@@ -92,18 +93,11 @@ export default function () {
     id: crypto.randomUUID(),
     source: 'ebuzima',
     type: 'Encounter',
-    subject: `LOADTEST-${id}`,
-    time: start.toISOString(),
+    subject: patient,
+    time: encounter.period.start,
     facilityid: config.facilityId,
     datacontenttype: 'application/fhir+json',
-    data: {
-      resourceType: 'Encounter',
-      id: `LOADTEST-ENC-${id}`,
-      status: 'finished',
-      class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB' },
-      subject: { reference: `Patient/LOADTEST-${id}` },
-      period: { start: start.toISOString(), end: end.toISOString() },
-    },
+    data: encounter,
   };
 
   // Key = patient ID, as the collector does: all of one patient's events go to the same partition, in order.
