@@ -3,7 +3,7 @@
 # writes one report. It only runs the existing tests in order; it adds no test of its own.
 #
 #   Part 1, each service on its own (feeds it directly, so a limit found is that service's):
-#     adaptor    adaptor/openhim.js    smoke · load · stress · breakpoint (staircase, then a finer one)
+#     adaptor    adaptor/openhim.js    smoke · load · stress · breakpoint (staircase, then a finer one: 3 levels in between)
 #     collector  collector/collector.js  the same
 #     matcher    matcher/matcher.js    smoke · load · stress · breakpoint (2,000/s flood → drain rate)
 #     Step SLA   seed-sla.sh + step-sla/step-sla.js + report-sla.sh   smoke · load · stress · storm
@@ -117,8 +117,10 @@ k6() {
 
 # From a breakpoint run's JSON summary: "<highest level passed> <lowest level broken>" (0 = none).
 # A level counts only if requests were sent at it. In the summary, a threshold's value true = failed.
+# Dropped requests aren't tagged with a level: if they stopped the run, the level it was on broke.
 levels() {
-  jq -r '.metrics | to_entries
+  jq -r '(.metrics.dropped_iterations.thresholds // {} | to_entries | map(.value) | any) as $dropped
+    | .metrics | to_entries
     | map(select(.key | test("^\\w+\\{level:[0-9]+\\}$"))
           | {lvl: (.key | capture("level:(?<l>[0-9]+)").l | tonumber), name: (.key | split("{")[0]), v: .value})
     | group_by(.lvl)
@@ -126,6 +128,8 @@ levels() {
            n: ((map(select(.name == "iterations")) | .[0].v.count) // 0),
            broken: ([.[].v.thresholds // {} | to_entries[].value] | any)})
     | map(select(.n > 0))
+    | (map(.lvl) | max) as $top
+    | map(if $dropped and .lvl == $top then .broken = true else . end)
     | "\([.[] | select(.broken | not) | .lvl] | max // 0) \([.[] | select(.broken) | .lvl] | min // 0)"' "$1"
 }
 
@@ -139,7 +143,8 @@ http_service() {
   read -r good bad <<<"$(levels "$OUT/$svc-breakpoint.json")"
   say "  $svc staircase: passed $good/s, broke at $bad/s"
   if (( good > 0 && bad > good )); then
-    step=$(( (bad - good) / 8 / 50 * 50 )); (( step < 50 )) && step=50
+    # 3 levels in between (e.g. 1600 → 2000, 2400, 2800 → 3200): within ±200/s, at half the events of 7.
+    step=$(( (bad - good) / 4 / 50 * 50 )); (( step < 50 )) && step=50
     fine=$(seq -s, $(( good + step )) "$step" $(( bad - step )))
     if [[ -n "$fine" ]]; then
       k6 "$svc-breakpoint-fine" services "$test" breakpoint -e LEVELS="$fine"; matcher_idle

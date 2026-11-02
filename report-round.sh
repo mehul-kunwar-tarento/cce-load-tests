@@ -57,18 +57,23 @@ broken() {
 # sql <query> with :'p' = the run's patient prefix (LOADTEST-<run>-%)
 sql() { run_psql -tA -F'|' -v p="LOADTEST-$1-%" <<<"$2"; }
 
-# Breakpoint levels: "level|sent|p95|errors%|broken" per level the run reached
+# Breakpoint levels: "level|sent|p95|errors%|broken" per level the run reached. Dropped requests
+# aren't tagged with a level: if they stopped the run, the level it was on broke.
 level_rows() {
-  jq -r '.metrics | to_entries
+  jq -r '(.metrics.dropped_iterations.thresholds // {} | to_entries | map(.value) | any) as $dropped
+    | (.metrics.dropped_iterations.count // 0) as $ndrop
+    | .metrics | to_entries
     | map(select(.key | test("^\\w+\\{level:[0-9]+\\}$"))
           | {lvl: (.key | capture("level:(?<l>[0-9]+)").l | tonumber), name: (.key | split("{")[0]), v: .value})
-    | group_by(.lvl)[]
-    | {lvl: .[0].lvl,
+    | group_by(.lvl)
+    | map({lvl: .[0].lvl,
        n: ((map(select(.name == "iterations")) | .[0].v.count) // 0),
        p95: (map(select(.name == "http_req_duration")) | .[0].v["p(95)"]),
        err: (map(select(.name == "http_req_failed")) | .[0].v.value),
-       broken: [.[] | .name as $n | (.v.thresholds // {}) | to_entries[] | select(.value == true) | "\($n) \(.key)"]}
-    | select(.n > 0)
+       broken: [.[] | .name as $n | (.v.thresholds // {}) | to_entries[] | select(.value == true) | "\($n) \(.key)"]})
+    | map(select(.n > 0))
+    | (map(.lvl) | max) as $top
+    | map(if $dropped and .lvl == $top then .broken += ["k6 dropped \($ndrop) requests"] else . end)[]
     | "\(.lvl)|\(.n)|\(.p95 // 0 | . * 10 | round / 10)|\((.err // 0) * 1000 | round / 10)|\(.broken | join(", "))"' "$DIR/$1.json" 2>/dev/null
 }
 # "<passed> <broken>" for a breakpoint run (0 = none)
@@ -112,8 +117,14 @@ breakpoint_section() {
   echo
   if (( bad > 0 )); then
     echo "**Breaking point: handled ${good}/s ($(times_peak "$good") peak), broke at ${bad}/s ($(times_peak "$bad") peak).**"
-  elif [[ "$(field "$svc-breakpoint" 8)" == 99 ]]; then
-    echo "**Stopped because k6 dropped over 1,000 requests with no level failing its rules: at least ${good}/s ($(times_peak "$good") peak). That is k6's or the machine's limit, not the service's (test plan D4).**"
+    # Broken only by dropped requests while replies were still fast: the sender ran out, not the service.
+    local row; row=$(level_rows "$svc-breakpoint"; ran "$svc-breakpoint-fine" && level_rows "$svc-breakpoint-fine")
+    row=$(grep "^$bad|" <<<"$row" | head -1)
+    IFS='|' read -r _ _ p95 _ why <<<"$row"
+    if [[ "$why" == "k6 dropped"* && "$why" != *,* ]] && awk -v p="$p95" 'BEGIN {exit !(p < 100)}'; then
+      echo "At ${bad}/s only dropped requests broke the rules, with p95 still ${p95} ms: k6 or the machine may"
+      echo "have been the limit, not the service (test plan D4). Read it as \"at least ${good}/s\"."
+    fi
   elif ran "$svc-breakpoint"; then
     echo "**Not broken: handled every level up to ${good}/s ($(times_peak "$good") peak).**"
   fi
@@ -138,6 +149,8 @@ http_db_check() {
     local ok=❌; [[ "$stored" -ge "$sent" && "$matched" == "$stored" && "$patients" == "$stored" ]] 2>/dev/null && ok=✅
     echo "| $n | $sent | $stored | $matched | $patients | $enrol | $ok |"
   done
+  echo
+  echo "A breakpoint run is stopped mid-flight: requests k6 cut off can still be stored, so there stored ≥ sent."
 }
 
 # --- Write the report ---------------------------------------------------------------------------
@@ -152,7 +165,7 @@ cat <<EOF
 |---|---|
 | **Environment** | \`$ENV_NAME\` on \`$(jq -r .host "$DIR/meta.json")\` ($(jq -r .cores "$DIR/meta.json") cores) |
 | **Code** | cce-load-tests \`$(jq -r .commit "$DIR/meta.json")\` |
-| **ACTIVE protocols** | $(jq -r .protocols "$DIR/meta.json" | sed 's/, /<br>/g') |
+| **ACTIVE protocols** | $(jq -r .protocols "$DIR/meta.json" | sed 's/|/ v/g; s/, /<br>/g') |
 | **Duration** | $(( ($(jq -r '.end // .start' "$DIR/meta.json") - $(jq -r .start "$DIR/meta.json")) / 60 )) min; machine slept during the round: $(jq -r '.slept // "unknown"' "$DIR/meta.json") times |
 | **Expected peak** | $PEAK events/s ("× peak" = a rate ÷ $PEAK) |
 
@@ -165,7 +178,7 @@ fall behind instead, so their breaking point is their drain rate: any steady loa
 EOF
 
 # ---- Part 1 ----
-P1=$(
+P1=$( {
 echo "## Part 1: each service on its own"
 echo
 echo "Each test feeds one service directly, so a limit found is that service's own. Load and stress runs"
@@ -238,7 +251,7 @@ cap=$(num "$(m step-sla-storm '.metrics.step_sla_drain_rate.med')" 0)
 echo
 [[ "$cap" != "–" ]] && echo "**Breaking point: ~${cap} alarms/s ($(times_peak "$cap") peak).** Above that rate of alarms ringing, Step SLA falls behind."
 echo "CAPACITY_STEPSLA=$cap" >&2
-) 2>"$DIR/.capacities"
+} 2>"$DIR/.capacities" )
 echo "$P1"
 CAPACITY_MATCHER=$(sed -n 's/^CAPACITY_MATCHER=//p' "$DIR/.capacities"); CAPACITY_STEPSLA=$(sed -n 's/^CAPACITY_STEPSLA=//p' "$DIR/.capacities")
 rm -f "$DIR/.capacities"
@@ -295,12 +308,13 @@ echo "|---|---|---|---|---|---|"
 for svc in adaptor collector; do
   read -r good bad <<<"${CAPACITY[$svc]}"
   bp="handled ${good}/s$( (( bad > 0 )) && echo ", broke at ${bad}/s" || echo ", not broken")"
-  ran "$svc-breakpoint" || bp="– (not run)"
-  echo "| ${svc^} | $(verdict "$svc-smoke") | $(verdict "$svc-full") | $(verdict "$svc-stress") | $bp | $(times_peak "$good") |"
+  xp=$(times_peak "$good")
+  ran "$svc-breakpoint" || { bp="– (not run)"; xp="–"; }
+  echo "| ${svc^} | $(verdict "$svc-smoke") | $(verdict "$svc-full") | $(verdict "$svc-stress") | $bp | $xp |"
 done
-echo "| Matcher | $(verdict matcher-smoke) | $(verdict matcher-full) | $(verdict matcher-stress) | ~${CAPACITY_MATCHER} events/s | $(times_peak "$CAPACITY_MATCHER") |"
+echo "| Matcher | $(verdict matcher-smoke) | $(verdict matcher-full) | $(verdict matcher-stress) | $([[ "$CAPACITY_MATCHER" =~ ^[0-9]+$ ]] && echo "~${CAPACITY_MATCHER} events/s" || echo "– (not run)") | $(times_peak "$CAPACITY_MATCHER") |"
 sla() { [[ -f "$DIR/step-sla-$1-report.txt" ]] && { grep -qE '^\s*PASS' "$DIR/step-sla-$1-report.txt" && echo "✅ PASS" || echo "❌ FAIL"; } || verdict "step-sla-$1"; }
-echo "| Step SLA | $(sla smoke) | $(sla load) | $(sla stress) | ~${CAPACITY_STEPSLA} alarms/s (storm: $(sla storm)) | $(times_peak "$CAPACITY_STEPSLA") |"
+echo "| Step SLA | $(sla smoke) | $(sla load) | $(sla stress) | $([[ "$CAPACITY_STEPSLA" =~ ^[0-9]+$ ]] && echo "~${CAPACITY_STEPSLA} alarms/s (storm: $(sla storm))" || echo "– (not run)") | $(times_peak "$CAPACITY_STEPSLA") |"
 echo "| **Whole journey** (flow) | $(verdict flow-smoke) | $(verdict flow-full) | $(verdict flow-stress) | the weakest service's | |"
 # The weakest link among the services every event passes through (events/s).
 weakest=""; wname=""
