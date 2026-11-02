@@ -24,7 +24,7 @@
   },
   "db": {
     "host": "localhost",
-    "port": 15432,
+    "port": 15433,
     "name": "ccedb",
     "user": "cce_user"
   },
