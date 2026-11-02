@@ -5,9 +5,52 @@ Step SLA. All test data is eBUZIMA-shaped (`lib/ebuzima.js`), and the protocol i
 `emr-service-protocol` v1.0.0 (`protocol/emr-service-protocol.json`, a copy of
 `cce-protocol-service` release-2.0.0 `rwanda-ebuzima-emr-service-protocol-nested.json`).
 
-There are two kinds of test:
-- **The flow** (`flow.sh`): the services working together, and the main test.
-- **One service at a time** (`run.sh <env> <service test>`): to find which service is slow once the flow shows a problem.
+There are three ways to run them, from smallest to largest:
+
+| What | Command | What it tests | Report |
+|---|---|---|---|
+| **One service at a time** | `./run.sh <env> <service test>` | One service, fed directly (adaptor, collector, matcher via Kafka, Step SLA via seeded alarms): its own limits and breaking point | k6's summary (Step SLA: `report-sla.sh`) |
+| **The flow** (the eBUZIMA journey) | `./flow.sh <env> <profile>`, which runs `flow/ebuzima-flow.js` | All services working together: patients walk the eBUZIMA protocol through the adaptor, as eBUZIMA would, and the database is checked at every stage | `results/flow-<profile>-<run>/report.md` |
+| **A full round** | `./round.sh <env>` | Both of the above in order: every service on its own (smoke, load, stress, breakpoint), then the flow (smoke, full, stress) | `results/round-<env>-<time>/REPORT.md`, written by `report-round.sh` |
+
+`flow/ebuzima-flow.js` is the **test** of the whole journey; `flow.sh` runs it and does the checks k6
+can't. `round.sh` is **not a test**: it only runs the existing tests in order, unattended, and
+`report-round.sh` turns their results into one report. A round needs the flow for its Part 2; the flow
+alone can't tell which service is the weak one, which is what the single-service tests are for.
+
+## A full round: `round.sh` and `report-round.sh`
+
+```bash
+DB_PASSWORD=<password> ./round.sh <env> --quick     # smoke tests only, ~10 min: checks the stack and the round work
+DB_PASSWORD=<password> ./round.sh <env>             # the full round, ~3–3.5 hours
+DB_PASSWORD=<password> ./report-round.sh results/round-<env>-<time>   # rebuild a round's report from its files
+DB_PASSWORD=<password> ./cleanup.sh <env>           # afterwards, before the next day
+```
+
+1. **Pre-flight:** every service answers, the database is reachable, the eBUZIMA protocol is ACTIVE.
+   The ACTIVE protocols are recorded: they change the results a lot (see "Several plan definitions").
+2. **Part 1, each service on its own:** adaptor, then collector (smoke, load, stress, breakpoint staircase
+   and a finer staircase between the last good level and the broken one), matcher (smoke, load, stress,
+   flood), Step SLA (smoke, load, stress, storm, each with `report-sla.sh`).
+3. **Part 2, the whole journey:** `flow.sh` smoke, full, stress.
+4. **Report:** `report-round.sh` writes `REPORT.md`: a summary (each service's results, breaking point and
+   × peak, the weakest link, whether the flow broke where Part 1 predicts), Part 1 per service (results,
+   breakpoint levels, events sent vs rows in the database), Part 2 (each flow run and the time at each stage).
+
+Between runs it waits until the matcher has processed nothing for 30 s, so one run's events don't spill
+into the next. A failed test doesn't stop the round. On Linux it keeps the machine awake
+(`systemd-inhibit`); elsewhere, don't let the machine sleep during a round: it freezes the services.
+`report-round.sh` only reads the saved files, so it can be run again on an old round; run it with
+`DB_PASSWORD` before `cleanup.sh` to include the database counts.
+
+**Before a round on another machine:** Docker, `curl` and `jq`; an `env/<name>.json` for your stack
+(copy `env/local.json` and change the ports); the database password; `./protocol-setup.sh <env>`. On
+Dev/UAT you also need direct access to Kafka and Postgres (port-forwards): the matcher test writes to
+Kafka and the Step SLA test seeds the database. Results depend on the machine; the thresholds don't.
+
+**Thresholds vs breaking points.** Thresholds are the fixed pass/fail rules in the tests. A breaking
+point is a measurement: the load at which a service stops meeting those rules, on that machine, with
+those protocols and that much data. Run a round twice to see how much it moves.
 
 ## The eBUZIMA flow: `flow.sh`
 
@@ -82,7 +125,11 @@ builds it (about a minute, needs internet); later runs reuse it.
 ./run.sh <env> <test>                    # e.g. ./run.sh local adaptor/openhim.js  (smoke, then load)
 ./run.sh <env> <test> -e PROFILE=smoke   # smoke only (30 s)
 ./run.sh <env> <test> -e PROFILE=stress  # smoke, then stress
+./run.sh <env> <test> -e PROFILE=breakpoint  # smoke, then find the breaking point (below)
 ```
+
+Every run gets a run ID (printed at the start; set your own with `RUN_ID=…`). Test patients are
+`LOADTEST-<run>-<scenario>-<n>`, so one run's rows can be counted in the database.
 
 The rates come from the expected traffic: 600,000 events a day, about 7/s on average and 50/s in
 10-minute peaks (cce-data-pipeline docs §7.1).
@@ -92,9 +139,25 @@ The rates come from the expected traffic: 600,000 events a day, about 7/s on ave
 | smoke | 1/s | 30 s | the script and setup work; if it fails, k6 stops at once |
 | load (default) | 50/s, the expected peak | 10 min | the service handles a normal busy period |
 | stress | 200/s, 4× the peak | 10 min | the service handled 120,000 events in 10 minutes |
+| breakpoint | rising until it breaks | up to 6 min | gives the breaking point; it is expected to fail |
 
 Load and stress use the same pass/fail rules. A stress run stops early if errors pass 10%. It
 leaves a lot of data; wait for the matcher's Kafka lag to reach 0 before running `cleanup.sh`.
+
+**Breakpoint** (test plan D1, D3, D5) depends on the kind of service:
+- **Adaptor, collector** (`lib/breakpoint.js`): a staircase 200 → 400 → 800 → 1,600 → 3,200 → 6,400 requests/s,
+  1 minute per level. Each level is judged on its own with the load rules; the run stops at the first
+  broken level. Result: "handled X/s, broke at Y/s". For a finer answer, run again between the two:
+  `-e LEVELS=1600,1800,2000,2200,2400,2600,2800,3000` (`round.sh` does this for you). If k6 drops over
+  1,000 requests while the service is still fast, k6 or the machine ran out, not the service (D4).
+- **Matcher:** a flood of 2,000 events/s for 1 minute, far more than it can do. `matcher_drain_rate`
+  (median) is how many events per second it gets through while flat out: its breaking point.
+- **Step SLA:** `seed-sla.sh <env> storm` (100,000 alarms at once); `step_sla_drain_rate` (median) is its
+  breaking point in alarms per second. `COUNT_OVERRIDE=<n> ./seed-sla.sh <env> storm` seeds a bigger storm,
+  to find where its 300 s rule breaks.
+
+Queue services (matcher, Step SLA) never refuse work; above their drain rate they fall behind, so the
+backlog grows without limit. That's why their breaking point is a rate, not a failing request.
 
 Each of these sends one eBUZIMA visit Encounter per request.
 
@@ -122,6 +185,30 @@ The alarms are on the eBUZIMA protocol's `vitals-recording` step (`stepSla` in `
 Run one Step SLA test at a time, and wait for the last alarm to ring before seeding again. The
 watcher reads Step SLA's overall counters, so alarms left from an earlier seed count as this run's.
 
+## Several plan definitions
+
+With only eBUZIMA ACTIVE, each event enrols a patient in one protocol. `protocol/variants/` holds three
+load-test copies of eBUZIMA with the same steps and triggers, so every eBUZIMA event matches all four;
+only which steps are mandatory differs:
+
+| Protocol | Mandatory steps |
+|---|---|
+| eBUZIMA (`emr-service-protocol`) | 3: vitals, consultation, diagnosis |
+| `emr-service-protocol-light` | 1: vitals |
+| `emr-service-protocol-lab-focus` | 5: consultation, lab-order, lab-results, treatment, referral |
+| `emr-service-protocol-strict` | 7: vitals, consultation, chief-complaints, history, lab-order, diagnosis, treatment |
+
+```bash
+./protocol-variants.sh <env> load      # load the three (the matcher picks them up within 60 s)
+./protocol-variants.sh <env> retire    # retire them (asks first; a retired version can't come back, bump "version")
+```
+
+Each extra match is another enrolment, steps and alarms in Postgres, so the matcher slows down in
+proportion. Mandatory steps get deadlines, so they also give Step SLA work; optional steps don't. A
+mandatory step needs a `tolerance-days` deadline and an optional one must not have one, or the protocol
+service rejects the protocol. On a laptop (2 Nov) the matcher drained ~550 events/s with eBUZIMA alone and
+~180 events/s with all four.
+
 **Resources:** `./monitor.sh <env> out.tsv &` samples the JVM (heap, GC, threads), database pools,
 Kafka producer and the matcher's and Step SLA's own counters, plus each container's CPU, memory and
 I/O, every 5 s. `./monitor.sh --summary out.tsv` gives min/avg/max. `flow.sh` runs it for you.
@@ -139,7 +226,8 @@ services directly, not through the gateway (the gateway rate-limits `/v1/events`
 
 | File | Environment |
 |---|---|
-| `env/local.json` | The local stack (`extras/cce-local-setup`) |
+| `env/local.json` | The local stack (`extras/cce-local-setup`, default ports) |
+| `env/local-machine.json` | One laptop's stack (`openphc-repos/local-stack`), with its own ports: Postgres on 15433, Kafka on 29092 |
 
 Pick one with `-e ENV=<name>`. Passwords are never stored here; they come from environment variables.
 
@@ -167,6 +255,11 @@ Locally, `extras/cce-local-setup/scripts/reset-data.sh` clears everything instea
   `matcher_event_log` but no index, so deleting matcher events scans all of `step_instance` per row.
   `cleanup.sh` works around it with an index that exists only during its transaction (writes to
   `step_instance` wait meanwhile). The real fix is a migration in `cce-matcher-service`; raise with the team.
+- **`round.sh` and `report-round.sh` have not had a full run yet** (written 3 Nov). Start with
+  `./round.sh <env> --quick` and fix what it shows.
+- **One dropped request fails a load run** (`dropped_iterations: count==0`). On 2 Nov a 50/s adaptor run
+  failed on 1 drop in 30,030, during a 1.1 s stall when the collector's database pool was full (10 of 10).
+  Decide whether that should fail, or allow a small rate.
 - **Grafana/Prometheus (later):** send k6's own metrics to Prometheus (`-o experimental-prometheus-rw`)
   and add the k6 dashboard to Grafana. Needs `--web.enable-remote-write-receiver` on Prometheus in
   `deploy-scripts`. Until then, watch the service's existing Grafana dashboard during a run.

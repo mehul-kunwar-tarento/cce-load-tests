@@ -49,9 +49,9 @@ machine. Real limits come from Dev and UAT.
   write errors.
 - **Stress:** flood: 2,000 events/s for 1 min (120,000), far above what it can read. Maximum throughput =
   its median events/s while a backlog exists.
-- **Status:** test exists (`matcher/matcher.js`). Load passed (backlog 0). Old stress (200/s) passed;
-  **breaking-point stress to build.** Earlier staircase runs suggest about 260–340/s with its default 3
-  consumer threads.
+- **Status:** test exists (`matcher/matcher.js`). Load passed (backlog 0). Old stress (200/s) passed.
+  Breaking-point flood built (`-e PROFILE=breakpoint`, 3 Nov). Laptop, 2 Nov: ~551 events/s drained with
+  eBUZIMA alone (11× peak), ~179/s with 4 overlapping protocols (3.6× peak); see README "Several plan definitions".
 
 ### 2.2 Step SLA
 
@@ -83,7 +83,10 @@ machine. Real limits come from Dev and UAT.
   intervals; event → enrolment p95 < 10 s. The 10 s is one setting too:
   `-e ENROLMENT_LIMIT_SECONDS=20`.
 - **Stress:** none of its own: the chain breaks at its slowest service, which 2.1 and 2.2 already find.
-- **Status:** **to build.**
+- **Status:** built as `flow.sh` + `flow/ebuzima-flow.js` (30 Oct). It differs from the text above, which
+  should be updated to match: visits are dated now and `flow.sh` brings the run's DUE alarms forward
+  instead of `PAST_DATED_PERCENT`; there is no `ENROLMENT_LIMIT_SECONDS`; it checks every stage in the
+  database (see README). `round.sh` (3 Nov) runs 2.1, 2.2 and this one in order, with one report.
 
 ### 2.4 Insights API
 
