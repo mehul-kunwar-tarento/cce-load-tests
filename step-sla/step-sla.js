@@ -11,6 +11,8 @@
 //              (Step SLA restarted); ends when every seeded alarm is handled and records the catch-up time
 //   readMetrics()  reads the numbers off /actuator/prometheus
 // Pass here: every seeded alarm handled, all handled < 30 s after the last alarm rang (storm: < 5 min).
+// Breakpoint (test plan D1, D5): seed the storm (100,000 alarms at once); step_sla_drain_rate is how many
+// alarms per second Step SLA handles while it is flat out (median = its limit).
 // The backlog is shown for information only: it depends on when the watcher looks (just before a
 // 5 s check, 200/s already means 1,000 waiting). The real pass/fail is report-sla.sh: each alarm's wait.
 //
@@ -51,12 +53,15 @@ export const options = {
     checks: ['rate>0.99'],
     http_req_failed: ['rate<0.01'],
     step_sla_catch_up_seconds: [`max<${CATCH_UP_TARGET}`],
+    ...(STORM ? { step_sla_drain_rate: ['med>0'] } : {}),
   },
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(95)'],
 };
 
 const backlog = new Trend('step_sla_backlog');       // alarms waiting, for the report (no pass/fail)
 const throughput = new Trend('step_sla_throughput'); // alarms handled per second, for the report
 const catchUp = new Trend('step_sla_catch_up_seconds');
+const drainRate = new Trend('step_sla_drain_rate'); // alarms handled per second while over 1,000 are due
 
 // Reads Step SLA's numbers from its Prometheus page, e.g. cce_sla_transitions_due{...} 0.0
 function readMetrics() {
@@ -97,6 +102,7 @@ export function watch(data) {
     }
     backlog.add(now.due);
     throughput.add((now.handled - previous) / WATCH_EVERY);
+    if (now.due > 1000) drainRate.add((now.handled - previous) / WATCH_EVERY);
     // Progress = the counter went up, or nothing is waiting (before the first alarm rings, Step SLA has
     // nothing to do, which is not a stall).
     if (now.handled > previous || now.due <= 10) lastProgress = Date.now();

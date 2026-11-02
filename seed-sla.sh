@@ -29,6 +29,8 @@ case "$PROFILE" in
   storm)  COUNT=100000; RATE=0 ;;   # 0 = all at once
   *) echo "Usage: DB_PASSWORD=<password> $0 <env> <smoke|load|stress|storm>" >&2; exit 1 ;;
 esac
+# COUNT_OVERRIDE=<n> overrides the number of alarms, e.g. a bigger storm to find where the 300 s rule breaks.
+COUNT=${COUNT_OVERRIDE:-$COUNT}
 
 PROTOCOL_URL=$(jq -r .stepSla.protocolUrl "$CONFIG")
 ACTION_ID=$(jq -r .stepSla.actionId "$CONFIG")

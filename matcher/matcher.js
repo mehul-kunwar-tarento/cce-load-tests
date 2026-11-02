@@ -10,31 +10,49 @@
 //   sentBy()   events sent by t seconds, worked out from the schedule (virtual users share no counter)
 //   readMetrics()  reads the numbers off the matcher's /actuator/prometheus page
 // Pass: no Kafka errors, nothing dropped, backlog < 1,000, catch-up < 30 s.
+// Breakpoint (test plan D1, D5): a flood of 2,000 events/s for 1 min, far more than the matcher can do,
+// then the watcher measures how many events per second it gets through while the backlog lasts
+// (matcher_drain_rate, median = its limit). Any steady rate above that makes events pile up.
 //
 // Run: ./run.sh local matcher/matcher.js                    (smoke, then load)
 //      ./run.sh local matcher/matcher.js -e PROFILE=smoke   (smoke only)
 //      ./run.sh local matcher/matcher.js -e PROFILE=stress  (smoke, then stress)
+//      ./run.sh local matcher/matcher.js -e PROFILE=breakpoint  (smoke, then the flood)
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
 import exec from 'k6/execution';
 import { Producer } from 'k6/x/kafka';
 import { optionsFor } from '../lib/options.js';
-import { visitEncounter } from '../lib/ebuzima.js';
+import { visitEncounter, testPatient } from '../lib/ebuzima.js';
 
 if (!__ENV.ENV) {
   throw new Error('Choose an environment, e.g. -e ENV=local');
 }
 const config = JSON.parse(open(`../env/${__ENV.ENV}.json`)).matcher;
 
+const PROFILE = __ENV.PROFILE || 'full';
+const BREAKPOINT = PROFILE === 'breakpoint';
 const WATCH_EVERY = 5;     // seconds between two reads of the matcher's counter
-const CATCH_UP_LIMIT = 120; // seconds the watcher waits for the backlog to clear after sending stops
+const CATCH_UP_LIMIT = BREAKPOINT ? 900 : 120; // seconds the watcher waits for the backlog to clear after sending stops
+const SATURATED = 1000;    // breakpoint: with this many waiting, the matcher is working flat out
 const CAUGHT_UP = 10;      // a backlog this small counts as cleared (the schedule maths is off by a few)
 const STALLED = 30;        // events waiting but none processed for this many seconds: stop the test
 
 // --- Scenarios: the shared sending profile, plus one watcher -----------------------------------
 
-const base = optionsFor(__ENV.PROFILE || 'full');
+const flood = {
+  executor: 'constant-arrival-rate',
+  rate: 2000,
+  timeUnit: '1s',
+  duration: '1m',
+  startTime: '30s',
+  preAllocatedVUs: 100,
+  maxVUs: 500,
+};
+const base = BREAKPOINT
+  ? { scenarios: { smoke: optionsFor('smoke').scenarios.smoke, flood }, thresholds: optionsFor('smoke').thresholds }
+  : optionsFor(PROFILE);
 
 // When each sending scenario starts and how long it runs, in seconds (e.g. '30s', '10m').
 const seconds = (d) => (d ? Number(d.slice(0, -1)) * (d.endsWith('m') ? 60 : 1) : 0);
@@ -64,15 +82,21 @@ export const options = {
   thresholds: {
     ...base.thresholds,
     kafka_writer_error_count: ['count==0'], // every event reached Kafka, so a failure is the matcher's
-    matcher_backlog: ['max<1000'],          // events waiting never passed 1,000 (5 s of traffic at 200/s)
-    matcher_catch_up_seconds: ['max<30'],   // after sending stopped, the backlog cleared within 30 s
+    dropped_iterations: ['count==0'],       // the whole flood reached Kafka
+    // The flood is meant to pile up, so the backlog and catch-up rules apply to load and stress only.
+    ...(BREAKPOINT ? { matcher_drain_rate: ['med>0'] } : {
+      matcher_backlog: ['max<1000'],          // events waiting never passed 1,000 (5 s of traffic at 200/s)
+      matcher_catch_up_seconds: ['max<30'],   // after sending stopped, the backlog cleared within 30 s
+    }),
   },
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(95)'],
 };
 
 const backlog = new Trend('matcher_backlog');
 const throughput = new Trend('matcher_throughput');           // events per second, for the report
 const catchUp = new Trend('matcher_catch_up_seconds');
 const processingMs = new Trend('matcher_processing_ms', true); // average time per event, for the report
+const drainRate = new Trend('matcher_drain_rate');            // breakpoint: events/s while the matcher is flat out
 
 // --- Sender ------------------------------------------------------------------------------------
 
@@ -80,10 +104,10 @@ const processingMs = new Trend('matcher_processing_ms', true); // average time p
 const producer = new Producer({ brokers: config.kafkaBrokers, topic: config.topic });
 
 export default function () {
-  // A new patient on every event; LOADTEST- marks the data as load-test data. An eBUZIMA visit
+  // A new patient on every event (LOADTEST-<run>-…, see testPatient). An eBUZIMA visit
   // Encounter, which enrols the patient in the eBUZIMA protocol. Dated now, so the protocol's
   // deadlines are in the future and Step SLA records no misses.
-  const patient = `LOADTEST-${Date.now()}-${__VU}-${__ITER}`;
+  const patient = testPatient();
   const encounter = visitEncounter(patient, config.facilityId);
 
   // The CloudEvent the collector publishes. The matcher skips a repeated id + source as a duplicate,
@@ -140,6 +164,7 @@ export function watch(data) {
 
     backlog.add(waiting);
     throughput.add((now.processed - previous) / WATCH_EVERY);
+    if (waiting > SATURATED) drainRate.add((now.processed - previous) / WATCH_EVERY);
     if (now.processed > previous) lastProgress = t;
     previous = now.processed;
 

@@ -29,11 +29,17 @@ if ! docker image inspect "$K6_IMAGE" >/dev/null 2>&1; then
   docker build -t "$K6_IMAGE" docker/
 fi
 
+# Every run gets a RUN_ID: test patients are LOADTEST-<RUN_ID>-…, so one run's rows can be found in
+# the database. A caller can set it (RUN_ID=… ./run.sh …, or -e RUN_ID=… as flow.sh does).
+RUN_ARGS=(-e RUN_ID="${RUN_ID:-$(date +%m%d%H%M%S)}")
+[[ " $* " == *" RUN_ID="* ]] && RUN_ARGS=()
+
 echo "Environment: $ENV_NAME (env/${ENV_NAME}.json)"
 echo "Test:        $TEST"
+[[ ${#RUN_ARGS[@]} -gt 0 ]] && echo "Run:         ${RUN_ARGS[1]#RUN_ID=}"
 
 # --network host: the container reaches the services the same way a program on this server would.
 # -v: the repo is mounted at /tests, so the test can read env/<env>.json.
 docker run --rm --network host -u "$(id -u):$(id -g)" \
   -v "$PWD:/tests" -w /tests \
-  "$K6_IMAGE" run -e ENV="$ENV_NAME" "$@" "$TEST"
+  "$K6_IMAGE" run -e ENV="$ENV_NAME" "${RUN_ARGS[@]}" "$@" "$TEST"
