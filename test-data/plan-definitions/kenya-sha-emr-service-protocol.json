@@ -1,0 +1,950 @@
+{
+  "id": "kenya-sha-emr-outpatient-service-protocol",
+  "url": "http://openphc.org/PlanDefinition/kenya-sha-emr-service-protocol",
+  "date": "2026-09-15",
+  "name": "KenyaFacilityServiceProtocol",
+  "title": "Kenya Facility Service Protocol",
+  "action": [
+    {
+      "id": "consent-request",
+      "title": "Consent Requested",
+      "type": {
+        "coding": [
+          {
+            "system": "http://openphc.org/fhir/CodeSystem/action-type",
+            "code": "step"
+          }
+        ]
+      },
+      "trigger": [
+        {
+          "data": [
+            {
+              "type": "Consent",
+              "codeFilter": [
+                {
+                  "code": [
+                    {
+                      "code": "proposed"
+                    }
+                  ],
+                  "path": "status"
+                },
+                {
+                  "code": [
+                    {
+                      "code": "59284-0",
+                      "system": "http://loinc.org"
+                    }
+                  ],
+                  "path": "category"
+                }
+              ]
+            }
+          ],
+          "name": "consent-request-trigger",
+          "type": "named-event"
+        }
+      ],
+      "description": "Patient-privacy consent proposed but not yet verified. Matches Consent with status proposed and category LOINC 59284-0 (Patient Consent) (verification[].verified=false, no verificationDate). NSHR/SHR-mediator sample posts this via a Bundle (type=transaction) with a PUT Patient entry alongside the Consent entry - the matcher must unwrap that transaction Bundle to find the Consent resource, not expect a bare Consent payload.",
+      "timingTiming": {
+        "repeat": {
+          "count": 1,
+          "period": 1,
+          "frequency": 1,
+          "periodUnit": "d"
+        }
+      },
+      "requiredBehavior": "must",
+      "action": [
+        {
+          "id": "consent-verification",
+          "title": "Consent Verified",
+          "type": {
+            "coding": [
+              {
+                "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                "code": "step"
+              }
+            ]
+          },
+          "trigger": [
+            {
+              "data": [
+                {
+                  "type": "Consent",
+                  "codeFilter": [
+                    {
+                      "code": [
+                        {
+                          "code": "active"
+                        }
+                      ],
+                      "path": "status"
+                    },
+                    {
+                      "code": [
+                        {
+                          "code": "59284-0",
+                          "system": "http://loinc.org"
+                        }
+                      ],
+                      "path": "category"
+                    }
+                  ]
+                }
+              ],
+              "name": "consent-verification-trigger",
+              "type": "named-event"
+            }
+          ],
+          "description": "Consent verified (e.g. via OTP, Afyayangu, or biometrics). Matches Consent with status active and category LOINC 59284-0 (Patient Consent) - same Consent id transitions status proposed to active, verification[].verified becomes true and verificationDate is set. Sample shows this ~25 minutes after consent-request. Gates access to the patient's SHR record; downstream clinical steps should not be expected before this fires.",
+          "timingTiming": {
+            "repeat": {
+              "count": 1,
+              "period": 1,
+              "frequency": 1,
+              "periodUnit": "d"
+            }
+          },
+          "relatedAction": [
+            {
+              "actionId": "consent-request",
+              "relationship": "after-end",
+              "offsetDuration": {
+                "code": "d",
+                "unit": "d",
+                "value": 1,
+                "system": "http://unitsofmeasure.org"
+              }
+            }
+          ],
+          "requiredBehavior": "must",
+          "extension": [
+            {
+              "url": "http://openphc.org/fhir/StructureDefinition/tolerance-days",
+              "valueInteger": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "visit-encounter",
+      "title": "Start of Outpatient Care",
+      "type": {
+        "coding": [
+          {
+            "system": "http://openphc.org/fhir/CodeSystem/action-type",
+            "code": "step"
+          }
+        ]
+      },
+      "trigger": [
+        {
+          "data": [
+            {
+              "type": "EpisodeOfCare",
+              "codeFilter": [
+                {
+                  "code": [
+                    {
+                      "code": "general-opd",
+                      "system": "https://nshr-uat.sha.go.ke/fhir/CodeSystem/ke-episode-of-care-type-cs"
+                    }
+                  ],
+                  "path": "type"
+                },
+                {
+                  "code": [
+                    {
+                      "code": "active"
+                    }
+                  ],
+                  "path": "status"
+                }
+              ]
+            }
+          ],
+          "name": "visit-encounter-trigger",
+          "type": "named-event"
+        }
+      ],
+      "description": "Visit begins. Matches the outpatient EpisodeOfCare opened at the start of the visit: type general-opd (ke-episode-of-care-type-cs) and status active. tibERbu sends this EpisodeOfCare for every visit, including returning patients whose registration Encounter is not sent, so the visit is anchored on it rather than on check-in. The EpisodeOfCare of an inpatient stay (type general-inpatient) does not match.",
+      "timingTiming": {
+        "repeat": {
+          "count": 1,
+          "period": 1,
+          "frequency": 1,
+          "periodUnit": "d"
+        }
+      },
+      "relatedAction": [
+        {
+          "actionId": "consent-verification",
+          "relationship": "after-end",
+          "offsetDuration": {
+            "code": "d",
+            "unit": "d",
+            "value": 1,
+            "system": "http://unitsofmeasure.org"
+          }
+        }
+      ],
+      "requiredBehavior": "must",
+      "extension": [
+        {
+          "url": "http://openphc.org/fhir/StructureDefinition/tolerance-days",
+          "valueInteger": 1
+        }
+      ],
+      "action": [
+        {
+          "id": "patient-check-in",
+          "title": "Patient Check-in",
+          "type": {
+            "coding": [
+              {
+                "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                "code": "step"
+              }
+            ]
+          },
+          "trigger": [
+            {
+              "data": [
+                {
+                  "type": "Encounter",
+                  "codeFilter": [
+                    {
+                      "code": [
+                        {
+                          "code": "AMB",
+                          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+                        }
+                      ],
+                      "path": "class"
+                    },
+                    {
+                      "code": [
+                        {
+                          "code": "184047000",
+                          "system": "http://snomed.info/sct"
+                        }
+                      ],
+                      "path": "type"
+                    }
+                  ]
+                }
+              ],
+              "name": "patient-check-in-trigger",
+              "type": "named-event"
+            }
+          ],
+          "description": "Outpatient check-in. Matches the registration Encounter only: class AMB (ambulatory) and type SNOMED 184047000 (Patient registration). Other ambulatory encounters of the visit (e.g. Triage, SNOMED 272465004) don't match this step. Ordered after the visit begins (the general-opd EpisodeOfCare).",
+          "timingTiming": {
+            "repeat": {
+              "count": 1,
+              "period": 1,
+              "frequency": 1,
+              "periodUnit": "d"
+            }
+          },
+          "relatedAction": [
+            {
+              "actionId": "visit-encounter",
+              "relationship": "after-end",
+              "offsetDuration": {
+                "code": "d",
+                "unit": "d",
+                "value": 1,
+                "system": "http://unitsofmeasure.org"
+              }
+            }
+          ],
+          "requiredBehavior": "must",
+          "extension": [
+            {
+              "url": "http://openphc.org/fhir/StructureDefinition/tolerance-days",
+              "valueInteger": 1
+            }
+          ]
+        },
+        {
+          "id": "vitals-recording",
+          "title": "Triage",
+          "type": {
+            "coding": [
+              {
+                "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                "code": "step"
+              }
+            ]
+          },
+          "trigger": [
+            {
+              "data": [
+                {
+                  "type": "Observation",
+                  "codeFilter": [
+                    {
+                      "code": [
+                        {
+                          "code": "vital-signs",
+                          "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+                        }
+                      ],
+                      "path": "category"
+                    }
+                  ]
+                }
+              ],
+              "name": "vitals-trigger",
+              "type": "named-event"
+            }
+          ],
+          "description": "Triage: the vitals bundle (temp, HR, RR, height, weight, BMI, SpO2, systolic/diastolic BP), one Observation per vital with category vital-signs, sharing a common effectiveDateTime. Optional (could): triage depends on clinical/administrative choice. Ordered after patient check-in.",
+          "timingTiming": {
+            "repeat": {
+              "count": 1,
+              "period": 1,
+              "frequency": 1,
+              "periodUnit": "d"
+            }
+          },
+          "relatedAction": [
+            {
+              "actionId": "patient-check-in",
+              "relationship": "after-end",
+              "offsetDuration": {
+                "code": "d",
+                "unit": "d",
+                "value": 0,
+                "system": "http://unitsofmeasure.org"
+              }
+            }
+          ],
+          "requiredBehavior": "could"
+        },
+        {
+          "id": "consultation-encounter",
+          "title": "Consultation",
+          "type": {
+            "coding": [
+              {
+                "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                "code": "step"
+              }
+            ]
+          },
+          "trigger": [
+            {
+              "data": [
+                {
+                  "type": "Encounter",
+                  "codeFilter": [
+                    {
+                      "code": [
+                        {
+                          "code": "AMB",
+                          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+                        }
+                      ],
+                      "path": "class"
+                    },
+                    {
+                      "code": [
+                        {
+                          "code": "11429006",
+                          "system": "http://snomed.info/sct"
+                        }
+                      ],
+                      "path": "type"
+                    }
+                  ]
+                }
+              ],
+              "name": "consultation-encounter-trigger",
+              "type": "named-event"
+            }
+          ],
+          "description": "Consultation. Matches Encounter class AMB (ambulatory) and type SNOMED 11429006 (Consultation) - the sub-encounter that diagnoses, medication orders, lab/procedure/imaging orders and procedures reference through .encounter. Optional: not every visit reaches consultation; once it does, diagnosis becomes mandatory (due 1 day after). Inpatient consultations (class IMP) don't match. A visit can hold more than one consultation encounter; the dependent steps are created once per enrolment. Ordered after triage (vitals): the expected outpatient flow is check-in, triage, then consultation. Triage is optional, so a consultation without vitals raises no deviation.",
+          "timingTiming": {
+            "repeat": {
+              "count": 1,
+              "period": 1,
+              "frequency": 1,
+              "periodUnit": "d"
+            }
+          },
+          "relatedAction": [
+            {
+              "actionId": "vitals-recording",
+              "relationship": "after-end",
+              "offsetDuration": {
+                "code": "d",
+                "unit": "d",
+                "value": 0,
+                "system": "http://unitsofmeasure.org"
+              }
+            }
+          ],
+          "requiredBehavior": "could",
+          "action": [
+            {
+              "id": "lab-order-request",
+              "title": "Lab Order",
+              "type": {
+                "coding": [
+                  {
+                    "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                    "code": "step"
+                  }
+                ]
+              },
+              "trigger": [
+                {
+                  "data": [
+                    {
+                      "type": "ServiceRequest",
+                      "codeFilter": [
+                        {
+                          "code": [
+                            {
+                              "code": "108252007",
+                              "system": "http://snomed.info/sct"
+                            }
+                          ],
+                          "path": "category"
+                        },
+                        {
+                          "code": [
+                            {
+                              "code": "active"
+                            }
+                          ],
+                          "path": "status"
+                        }
+                      ]
+                    }
+                  ],
+                  "name": "lab-order-request-trigger",
+                  "type": "named-event"
+                }
+              ],
+              "description": "Lab test ordered. Matches ServiceRequest with status active and category 108252007 (Laboratory procedure) - distinguishes a lab order from a procedure order, which uses category 387713003 instead. Optional: not every visit includes a lab order. Only the order stage is modeled here - no sample payload yet exists for the test-execution/result-generation/result-verification stages of the lab workflow. Ordered after the consultation encounter (before: after diagnosis, which flagged an order as out of order whenever its Condition arrived later or with no encounter).",
+              "timingTiming": {
+                "repeat": {
+                  "count": 1,
+                  "period": 1,
+                  "frequency": 1,
+                  "periodUnit": "d"
+                }
+              },
+              "relatedAction": [
+                {
+                  "actionId": "consultation-encounter",
+                  "relationship": "after-end",
+                  "offsetDuration": {
+                    "code": "d",
+                    "unit": "d",
+                    "value": 0,
+                    "system": "http://unitsofmeasure.org"
+                  }
+                }
+              ],
+              "requiredBehavior": "could",
+              "action": [
+                {
+                  "id": "lab-results",
+                  "title": "Lab Results",
+                  "type": {
+                    "coding": [
+                      {
+                        "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                        "code": "step"
+                      }
+                    ]
+                  },
+                  "trigger": [
+                    {
+                      "data": [
+                        {
+                          "type": "Observation",
+                          "codeFilter": [
+                            {
+                              "code": [
+                                {
+                                  "code": "laboratory",
+                                  "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+                                }
+                              ],
+                              "path": "category"
+                            },
+                            {
+                              "code": [
+                                {
+                                  "code": "final"
+                                }
+                              ],
+                              "path": "status"
+                            }
+                          ]
+                        }
+                      ],
+                      "name": "lab-results-trigger",
+                      "type": "named-event"
+                    }
+                  ],
+                  "description": "Lab result recorded. Matches Observation with category laboratory and status final - e.g. Kenya SHR sample 'Blood Slide For Malaria: POSITIVE'. Not linked by basedOn to lab-order-request in sample data (the Matcher Service correlates by patient, not by resource reference, consistent with the rest of this protocol). Optional (could): only meaningful once a lab order has actually been placed. The result carries no encounter either, and its test code is sent under SHA's erx-observation-codes-cs (e.g. 24336-0) rather than http://loinc.org.",
+                  "timingTiming": {
+                    "repeat": {
+                      "count": 1,
+                      "period": 1,
+                      "frequency": 1,
+                      "periodUnit": "d"
+                    }
+                  },
+                  "relatedAction": [
+                    {
+                      "actionId": "lab-order-request",
+                      "relationship": "after-end",
+                      "offsetDuration": {
+                        "code": "d",
+                        "unit": "d",
+                        "value": 0,
+                        "system": "http://unitsofmeasure.org"
+                      }
+                    }
+                  ],
+                  "requiredBehavior": "could"
+                }
+              ]
+            },
+            {
+              "id": "diagnosis",
+              "title": "Clinical Diagnosis",
+              "type": {
+                "coding": [
+                  {
+                    "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                    "code": "step"
+                  }
+                ]
+              },
+              "trigger": [
+                {
+                  "data": [
+                    {
+                      "type": "Condition"
+                    }
+                  ],
+                  "name": "diagnosis-trigger",
+                  "type": "named-event"
+                }
+              ],
+              "description": "Diagnosis recorded, due 1 day after the consultation encounter (before: 1 day after vitals). Matches any Condition (resource-type only). NSHR Condition.clinicalStatus/verificationStatus values (e.g. inactive/provisional) don't reliably indicate an active new diagnosis for this source, so codeFilter is intentionally omitted rather than mismatched.",
+              "timingTiming": {
+                "repeat": {
+                  "count": 1,
+                  "period": 1,
+                  "frequency": 1,
+                  "periodUnit": "d"
+                }
+              },
+              "relatedAction": [
+                {
+                  "actionId": "consultation-encounter",
+                  "relationship": "after-end",
+                  "offsetDuration": {
+                    "code": "d",
+                    "unit": "d",
+                    "value": 1,
+                    "system": "http://unitsofmeasure.org"
+                  }
+                }
+              ],
+              "requiredBehavior": "must",
+              "extension": [
+                {
+                  "url": "http://openphc.org/fhir/StructureDefinition/tolerance-days",
+                  "valueInteger": 1
+                }
+              ]
+            },
+            {
+              "id": "medication-request",
+              "title": "Medication Order",
+              "type": {
+                "coding": [
+                  {
+                    "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                    "code": "step"
+                  }
+                ]
+              },
+              "trigger": [
+                {
+                  "data": [
+                    {
+                      "type": "MedicationRequest",
+                      "codeFilter": [
+                        {
+                          "code": [
+                            {
+                              "code": "active"
+                            }
+                          ],
+                          "path": "status"
+                        },
+                        {
+                          "code": [
+                            {
+                              "code": "outpatient",
+                              "system": "http://terminology.hl7.org/CodeSystem/medicationrequest-category"
+                            }
+                          ],
+                          "path": "category"
+                        }
+                      ]
+                    }
+                  ],
+                  "name": "medication-request-trigger",
+                  "type": "named-event"
+                }
+              ],
+              "description": "Medication prescribed. Matches MedicationRequest with status active and category outpatient (medicationReference itself is deliberately not filtered on - it would restrict this to one specific drug rather than any medication order). Optional (could): not every diagnosis leads to a prescription (advice-only visits, referrals, lab-only visits). Note: observed sample data has MedicationDispense.whenHandedOver preceding this request's dispenseRequest.validityPeriod.start by ~1.5 minutes - a likely source data-quality issue, not a protocol design choice. The category filter is the HL7 medicationrequest-category system; a request whose category is sent only under SHA's medication-request-category-codes system does not match, and a second system can't be added to the same filter (Matcher would then require both). Ordered after the consultation encounter (before: after diagnosis, which flagged an order as out of order whenever its Condition arrived later or with no encounter).",
+              "timingTiming": {
+                "repeat": {
+                  "count": 1,
+                  "period": 1,
+                  "frequency": 1,
+                  "periodUnit": "d"
+                }
+              },
+              "relatedAction": [
+                {
+                  "actionId": "consultation-encounter",
+                  "relationship": "after-end",
+                  "offsetDuration": {
+                    "code": "d",
+                    "unit": "d",
+                    "value": 0,
+                    "system": "http://unitsofmeasure.org"
+                  }
+                }
+              ],
+              "requiredBehavior": "could",
+              "action": [
+                {
+                  "id": "medication-dispense",
+                  "title": "Medication Dispense",
+                  "type": {
+                    "coding": [
+                      {
+                        "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                        "code": "step"
+                      }
+                    ]
+                  },
+                  "trigger": [
+                    {
+                      "data": [
+                        {
+                          "type": "MedicationDispense",
+                          "codeFilter": [
+                            {
+                              "code": [
+                                {
+                                  "code": "completed"
+                                }
+                              ],
+                              "path": "status"
+                            }
+                          ]
+                        }
+                      ],
+                      "name": "medication-dispense-trigger",
+                      "type": "named-event"
+                    }
+                  ],
+                  "description": "Medication dispensed to patient. Matches completed MedicationDispense. Links back via authorizingPrescription to medication-request. Placed under medication-request because MedicationDispense.authorizingPrescription names the request (97% on dev); its context encounter is usually the consultation, and only a few point to a separate dispensing encounter (SNOMED 373784005), so that encounter has no step of its own.",
+                  "timingTiming": {
+                    "repeat": {
+                      "count": 1,
+                      "period": 1,
+                      "frequency": 1,
+                      "periodUnit": "d"
+                    }
+                  },
+                  "relatedAction": [
+                    {
+                      "actionId": "medication-request",
+                      "relationship": "after-end",
+                      "offsetDuration": {
+                        "code": "d",
+                        "unit": "d",
+                        "value": 0,
+                        "system": "http://unitsofmeasure.org"
+                      }
+                    }
+                  ],
+                  "requiredBehavior": "could"
+                }
+              ]
+            },
+            {
+              "id": "procedure-order-request",
+              "title": "Procedure Order",
+              "type": {
+                "coding": [
+                  {
+                    "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                    "code": "step"
+                  }
+                ]
+              },
+              "trigger": [
+                {
+                  "data": [
+                    {
+                      "type": "ServiceRequest",
+                      "codeFilter": [
+                        {
+                          "code": [
+                            {
+                              "code": "387713003",
+                              "system": "http://snomed.info/sct"
+                            },
+                            {
+                              "code": "363679005",
+                              "system": "http://snomed.info/sct"
+                            }
+                          ],
+                          "path": "category"
+                        },
+                        {
+                          "code": [
+                            {
+                              "code": "active"
+                            }
+                          ],
+                          "path": "status"
+                        }
+                      ]
+                    }
+                  ],
+                  "name": "procedure-order-request-trigger",
+                  "type": "named-event"
+                }
+              ],
+              "description": "Procedure or imaging ordered. Matches ServiceRequest with status active and category SNOMED 387713003 (Surgical procedure) or 363679005 (Imaging) - the two category codes are alternatives (either one matches), which distinguishes the order from a lab order (category 108252007). Optional: not every visit includes a procedure or imaging order. Ordered after the consultation encounter.",
+              "timingTiming": {
+                "repeat": {
+                  "count": 1,
+                  "period": 1,
+                  "frequency": 1,
+                  "periodUnit": "d"
+                }
+              },
+              "relatedAction": [
+                {
+                  "actionId": "consultation-encounter",
+                  "relationship": "after-end",
+                  "offsetDuration": {
+                    "code": "d",
+                    "unit": "d",
+                    "value": 0,
+                    "system": "http://unitsofmeasure.org"
+                  }
+                }
+              ],
+              "requiredBehavior": "could",
+              "action": [
+                {
+                  "id": "procedure",
+                  "title": "Procedure Performed",
+                  "type": {
+                    "coding": [
+                      {
+                        "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                        "code": "step"
+                      }
+                    ]
+                  },
+                  "trigger": [
+                    {
+                      "data": [
+                        {
+                          "type": "Procedure",
+                          "codeFilter": [
+                            {
+                              "code": [
+                                {
+                                  "code": "completed"
+                                }
+                              ],
+                              "path": "status"
+                            }
+                          ]
+                        }
+                      ],
+                      "name": "procedure-trigger",
+                      "type": "named-event"
+                    }
+                  ],
+                  "description": "Procedure performed - any type (therapeutic, diagnostic, or surgical), not just therapeutic. Matches any completed Procedure regardless of code (resource-type + status only), the same pattern used by the diagnosis step - dev data shows THERAPEUTIC-PROCEDURE, DIAGNOSTIC-PROCEDURE, SURGICAL-PROCEDURE and IMAGING-PROCEDURE codes under procedure-code-cs and erx-procedure-code-cs, plus other coding systems (e.g. a SNOMED-coded Tonsillectomy), so restricting to one code silently missed the rest. Not every visit includes a procedure, so this is optional. On dev, 14 of the 25 patients with a procedure had no procedure order, and the Procedure references its consultation encounter, never the order (no basedOn). Performed imaging (X-ray, CT, ultrasound) also arrives as a Procedure (mostly code IMAGING-PROCEDURE) and completes this step; it can't be excluded with a codeFilter because the codes span two code systems (Matcher requires every path+system of a filter to match). Ordered after the procedure order, matching the expected flow; a procedure done without an order (common in tibERbu data) raises no deviation, since both steps are optional.",
+                  "timingTiming": {
+                    "repeat": {
+                      "count": 1,
+                      "period": 1,
+                      "frequency": 1,
+                      "periodUnit": "d"
+                    }
+                  },
+                  "relatedAction": [
+                    {
+                      "actionId": "procedure-order-request",
+                      "relationship": "after-end",
+                      "offsetDuration": {
+                        "code": "d",
+                        "unit": "d",
+                        "value": 0,
+                        "system": "http://unitsofmeasure.org"
+                      }
+                    }
+                  ],
+                  "requiredBehavior": "could"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "patient-summary",
+          "title": "Outpatient Care Summary",
+          "type": {
+            "coding": [
+              {
+                "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                "code": "step"
+              }
+            ]
+          },
+          "trigger": [
+            {
+              "data": [
+                {
+                  "type": "Composition",
+                  "codeFilter": [
+                    {
+                      "code": [
+                        {
+                          "code": "60591-5",
+                          "system": "http://loinc.org"
+                        }
+                      ],
+                      "path": "type"
+                    }
+                  ]
+                }
+              ],
+              "name": "patient-summary-trigger",
+              "type": "named-event"
+            }
+          ],
+          "description": "Care summary. Matches a Composition of type LOINC 60591-5 (Patient summary Document), which tibERbu sends for the visit and may amend later. Optional (could). Ordered after the consultation, whose findings the summary records.",
+          "timingTiming": {
+            "repeat": {
+              "count": 1,
+              "period": 1,
+              "frequency": 1,
+              "periodUnit": "d"
+            }
+          },
+          "relatedAction": [
+            {
+              "actionId": "consultation-encounter",
+              "relationship": "after-end",
+              "offsetDuration": {
+                "code": "d",
+                "unit": "d",
+                "value": 0,
+                "system": "http://unitsofmeasure.org"
+              }
+            }
+          ],
+          "requiredBehavior": "could"
+        },
+        {
+          "id": "visit-closure",
+          "title": "End of Outpatient Care",
+          "type": {
+            "coding": [
+              {
+                "system": "http://openphc.org/fhir/CodeSystem/action-type",
+                "code": "step"
+              }
+            ]
+          },
+          "trigger": [
+            {
+              "data": [
+                {
+                  "type": "EpisodeOfCare",
+                  "codeFilter": [
+                    {
+                      "code": [
+                        {
+                          "code": "general-opd",
+                          "system": "https://nshr-uat.sha.go.ke/fhir/CodeSystem/ke-episode-of-care-type-cs"
+                        }
+                      ],
+                      "path": "type"
+                    },
+                    {
+                      "code": [
+                        {
+                          "code": "finished"
+                        }
+                      ],
+                      "path": "status"
+                    }
+                  ]
+                }
+              ],
+              "name": "visit-closure-trigger",
+              "type": "named-event"
+            }
+          ],
+          "description": "Visit ends. Matches the outpatient EpisodeOfCare of type general-opd (ke-episode-of-care-type-cs) once its status is finished, which tibERbu sends at sign-off. Optional (could). Ordered after the care summary: sign-off closes the visit once care is summarised. Both steps are optional, so a visit closed without a summary raises no deviation.",
+          "timingTiming": {
+            "repeat": {
+              "count": 1,
+              "period": 1,
+              "frequency": 1,
+              "periodUnit": "d"
+            }
+          },
+          "relatedAction": [
+            {
+              "actionId": "patient-summary",
+              "relationship": "after-end",
+              "offsetDuration": {
+                "code": "d",
+                "unit": "d",
+                "value": 0,
+                "system": "http://unitsofmeasure.org"
+              }
+            }
+          ],
+          "requiredBehavior": "could"
+        }
+      ]
+    }
+  ],
+  "status": "active",
+  "version": "1.0.0",
+  "description": "Tracks a Kenya SHA/NSHR outpatient visit workflow: patient-privacy consent request/verification (Consent status proposed then active); the visit, which begins with the general-opd EpisodeOfCare (status active) and ends when it is finished; patient check-in (registration Encounter); triage (vitals); consultation with diagnosis, medication order/dispense, an optional lab order and its result, and an optional procedure/imaging order and procedure; and an optional care summary (Composition). Medication-administration is intentionally not tracked - it is an inpatient concept. The Matcher Service correlates steps by patient, not by a single Encounter id.",
+  "resourceType": "PlanDefinition"
+}

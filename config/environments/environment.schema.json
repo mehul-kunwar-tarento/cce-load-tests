@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openphc.org/cce-performance-tests/environment.schema.json",
+  "$comment": "What: JSON Schema of an environment file config/environments/<env>.json (plan §3.1): where the services, Kafka, Postgres, k6 and monitoring are, and the safety switches. How: documentation and editor help; tools/core/environment.mjs validates the same rules by hand (validateEnvironment) when an environment is loaded. Needs: nothing. Outputs: nothing; there is deliberately no 'prod' kind, and any name matching /prod/i is refused by every command.",
+  "title": "CCE performance tests environment",
+  "type": "object",
+  "required": ["name", "kind", "services", "kafka", "database", "k6", "monitoring", "safety"],
+  "properties": {
+    "$comment": { "type": "string" },
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "not": { "pattern": "(?i)prod" } },
+    "kind": { "enum": ["local", "dev", "uat"] },
+    "description": { "type": "string" },
+    "services": {
+      "type": "object",
+      "description": "Direct service URLs (never the gateway). Keys: collector, matcher, stepSla, protocol (subject step-sla maps to stepSla).",
+      "required": ["collector", "matcher", "stepSla", "protocol"],
+      "additionalProperties": { "$ref": "#/$defs/service" }
+    },
+    "kafka": {
+      "type": "object",
+      "required": ["brokers", "inboundTopic", "deadLetterTopic", "matcherConsumerGroup"],
+      "properties": {
+        "brokers": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "inboundTopic": { "type": "string" },
+        "deadLetterTopic": { "type": "string" },
+        "matcherConsumerGroup": { "type": "string" },
+        "expectedPartitions": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "database": {
+      "type": "object",
+      "required": ["host", "port", "name", "user", "passwordEnvVar"],
+      "properties": {
+        "host": { "type": "string" },
+        "port": { "type": "integer" },
+        "name": { "type": "string" },
+        "user": { "type": "string" },
+        "passwordEnvVar": {
+          "type": "string",
+          "description": "Name of the environment variable holding the password; never the password itself."
+        },
+        "expectedTables": { "type": "array", "items": { "type": "string" } },
+        "replicationSlots": { "type": "array", "items": { "type": "string" } }
+      },
+      "not": { "required": ["password"] }
+    },
+    "k6": {
+      "type": "object",
+      "required": ["image", "dockerNetwork"],
+      "properties": {
+        "image": { "type": "string" },
+        "dockerNetwork": {
+          "type": "string",
+          "description": "'host' on a laptop; any other Docker network publishes the k6 REST API port on 127.0.0.1."
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "prometheusUrl": { "type": "string" },
+        "remoteWriteUrl": { "type": "string" },
+        "grafanaUrl": { "type": "string" },
+        "grafanaUser": { "type": "string" }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "required": ["allowCleanup", "allowTempIndex", "allowPlanDefinitionChanges"],
+      "properties": {
+        "allowCleanup": { "type": "boolean" },
+        "allowTempIndex": { "type": "boolean" },
+        "allowPlanDefinitionChanges": { "type": "boolean" },
+        "minFreeDiskGb": { "type": "number", "minimum": 0 }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "description": "Environment-specific setting defaults, same names as config/settings/defaults.json."
+    },
+    "adaptors": {
+      "type": "object",
+      "description": "Reserved for later adaptor modules (plan §10.4); no in-scope code reads it."
+    }
+  },
+  "$defs": {
+    "service": {
+      "type": "object",
+      "required": ["baseUrl", "healthPath"],
+      "properties": {
+        "baseUrl": { "type": "string" },
+        "healthPath": { "type": "string" },
+        "metricsPath": { "type": "string" },
+        "prometheusJob": { "type": "string" },
+        "apiPath": { "type": "string" },
+        "pollIntervalSeconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Step SLA only: the service's scheduler poll interval in seconds (CCE_SLA_POLL_INTERVAL_MS / 1000). Default profile 5 (application.yml, used by local-stack); prod profile 15 (application-prod.yml, used by deploy-scripts). Drives the preflight step-sla-scheduler wait (value + 2 s) and STEP_SLA_MAX_WAIT=auto (2 x value)."
+        },
+        "refreshIntervalSeconds": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

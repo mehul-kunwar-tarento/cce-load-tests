@@ -1,0 +1,601 @@
+{
+  "$comment": "What: THE single source of every test setting (plan §3.2): default, type, unit, which tests it applies to, a plain-language description and whether the value is still 'to be confirmed' (TBC) from UAT/Dev data or by the team. How: never edited per run; override any setting for one run with an environment variable of the same name (LOAD_RATE=80 scripts/run-test.sh …) or --set NAME=value, or per environment in config/environments/<env>.json 'settings'; print the resolved values with scripts/print-settings.sh <env> [<subject> <test-type>]. Needs: nothing; tools/core/settings.mjs reads it (this $comment is dropped, never a setting). Outputs: the typed values in run-context.json (k6) and result.json conditions.settings. Types: rate = whole events (or alarms) per second ≥ 1; duration = 500ms, 30s, 10m, 1h30m (resolved to seconds); list = comma-separated rates; '' = unset (null). Secrets (DB_PASSWORD, GRAFANA_API_TOKEN, GRAFANA_ADMIN_PASSWORD) are environment variables only and never listed here.",
+  "RUN_ID": {
+    "default": "",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["all"],
+    "description": "Tags test data (LOADTEST-<runId>-…) and names the run. Empty = automatic yyyymmdd-hhmmss at the run start. A custom id must be 1-20 letters/digits (no hyphen, no underscore).",
+    "toBeConfirmed": false
+  },
+  "PLAN_DEFINITION_SET": {
+    "default": "emr-service",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["all"],
+    "description": "Which plan-definition set is ACTIVE for the run: a folder in test-data/plan-definition-sets/ (emr-service, kenya-sha-emr-service). Recorded with every result.",
+    "toBeConfirmed": false
+  },
+  "DATASET": {
+    "default": "",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["collector", "matcher"],
+    "description": "Which event dataset the k6 tests send: a folder in test-data/datasets/ (ebuzima-emr, tiberbu-emr). Empty = the first compatible dataset of PLAN_DEFINITION_SET (emr-service → ebuzima-emr, kenya-sha-emr-service → tiberbu-emr).",
+    "toBeConfirmed": false
+  },
+  "EVENT_ACTION_ID": {
+    "default": "",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["collector", "matcher"],
+    "description": "Which event template each iteration sends. Empty = the dataset's defaultActionId (visit-encounter).",
+    "toBeConfirmed": false
+  },
+  "EVENT_SOURCE": {
+    "default": "",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["collector", "matcher"],
+    "description": "CloudEvent 'source' of every test event. Empty = the dataset's source (loadtest-emr).",
+    "toBeConfirmed": false
+  },
+  "FACILITY_ID": {
+    "default": "",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["collector", "matcher"],
+    "description": "CloudEvent 'facilityid' of every test event. Empty = the dataset's facilityId (LOADTEST-FACILITY-01).",
+    "toBeConfirmed": false
+  },
+  "NOTE": {
+    "default": "",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["all"],
+    "description": "Free text saved with the result (e.g. why this run was made).",
+    "toBeConfirmed": false
+  },
+  "PEAK_RATE": {
+    "default": 50,
+    "type": "rate",
+    "unit": "events/s",
+    "appliesTo": ["all"],
+    "description": "Expected peak load: the design figure of the cce-data-pipeline docs (§7.1). Every '× peak' compares with it.",
+    "toBeConfirmed": true
+  },
+  "EXPECTED_HEADROOM": {
+    "default": 4,
+    "type": "number",
+    "unit": "× peak",
+    "appliesTo": ["stress", "breakpoint"],
+    "description": "Expectation: the service should withstand this many times the peak (stress = 4 × peak).",
+    "toBeConfirmed": true
+  },
+  "SMOKE_RATE": {
+    "default": 1,
+    "type": "rate",
+    "unit": "events/s",
+    "appliesTo": ["smoke"],
+    "description": "Smoke test rate: proves the script, data and setup work.",
+    "toBeConfirmed": false
+  },
+  "SMOKE_DURATION": {
+    "default": "30s",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["smoke"],
+    "description": "Smoke test duration.",
+    "toBeConfirmed": false
+  },
+  "SMOKE_EVENTS": {
+    "default": "",
+    "type": "integer",
+    "unit": "events",
+    "appliesTo": ["smoke"],
+    "description": "Total smoke events instead of a duration: SMOKE_DURATION = ceil(events / rate). Counts measured-phase events only.",
+    "toBeConfirmed": false
+  },
+  "LOAD_RATE": {
+    "default": 50,
+    "type": "rate",
+    "unit": "events/s",
+    "appliesTo": ["load"],
+    "description": "Load test rate: 1 × peak.",
+    "toBeConfirmed": false
+  },
+  "LOAD_DURATION": {
+    "default": "10m",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["load"],
+    "description": "Load test duration (measured phase, warm-up excluded).",
+    "toBeConfirmed": false
+  },
+  "LOAD_EVENTS": {
+    "default": "",
+    "type": "integer",
+    "unit": "events",
+    "appliesTo": ["load"],
+    "description": "Total load events instead of a duration: LOAD_DURATION = ceil(events / LOAD_RATE). Measured-phase events only (warm-up excluded).",
+    "toBeConfirmed": false
+  },
+  "STRESS_RATE": {
+    "default": 200,
+    "type": "rate",
+    "unit": "events/s",
+    "appliesTo": ["stress"],
+    "description": "Stress test rate: 4 × peak.",
+    "toBeConfirmed": false
+  },
+  "STRESS_DURATION": {
+    "default": "10m",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["stress"],
+    "description": "Stress test duration (measured phase).",
+    "toBeConfirmed": false
+  },
+  "STRESS_EVENTS": {
+    "default": "",
+    "type": "integer",
+    "unit": "events",
+    "appliesTo": ["stress"],
+    "description": "Total stress events instead of a duration: STRESS_DURATION = ceil(events / STRESS_RATE). Measured-phase events only.",
+    "toBeConfirmed": false
+  },
+  "WARM_UP_RATE": {
+    "default": 10,
+    "type": "rate",
+    "unit": "events/s",
+    "appliesTo": ["load", "stress", "breakpoint"],
+    "description": "Warm-up rate before measuring, so JVM start-up slowness is not measured.",
+    "toBeConfirmed": true
+  },
+  "WARM_UP_DURATION": {
+    "default": "1m",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["load", "stress", "breakpoint"],
+    "description": "Warm-up duration; 0s disables the warm-up.",
+    "toBeConfirmed": false
+  },
+  "LEVELS": {
+    "default": "200,400,800,1600,3200,6400",
+    "type": "list",
+    "unit": "events/s",
+    "appliesTo": ["collector", "breakpoint"],
+    "description": "HTTP breakpoint staircase: the rates tried one after the other (strictly ascending).",
+    "toBeConfirmed": false
+  },
+  "LEVEL_DURATION": {
+    "default": "1m",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["collector", "breakpoint"],
+    "description": "How long each staircase level is held.",
+    "toBeConfirmed": true
+  },
+  "MATCHER_FLOOD_RATE": {
+    "default": 2000,
+    "type": "rate",
+    "unit": "events/s",
+    "appliesTo": ["matcher", "breakpoint"],
+    "description": "Matcher breakpoint (flood): send far above what the matcher can process and measure how fast it drains.",
+    "toBeConfirmed": false
+  },
+  "MATCHER_FLOOD_DURATION": {
+    "default": "1m",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["matcher", "breakpoint"],
+    "description": "Matcher flood duration.",
+    "toBeConfirmed": false
+  },
+  "MATCHER_FLOOD_EVENTS": {
+    "default": "",
+    "type": "integer",
+    "unit": "events",
+    "appliesTo": ["matcher", "breakpoint"],
+    "description": "Total flood events instead of a duration: MATCHER_FLOOD_DURATION = ceil(events / MATCHER_FLOOD_RATE).",
+    "toBeConfirmed": false
+  },
+  "STEP_SLA_STORM_ALARMS": {
+    "default": 100000,
+    "type": "integer",
+    "unit": "alarms",
+    "appliesTo": ["step-sla", "breakpoint"],
+    "description": "Step SLA breakpoint (storm): this many alarms all ring at once.",
+    "toBeConfirmed": false
+  },
+  "STEP_SLA_FIRST_RING_DELAY": {
+    "default": "60s",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["step-sla"],
+    "description": "Time from seeding the alarms to the first alarm ringing.",
+    "toBeConfirmed": false
+  },
+  "STEP_SLA_SEED_MODE": {
+    "default": "set",
+    "type": "enum",
+    "unit": "",
+    "appliesTo": ["step-sla"],
+    "description": "set: alarms spread round-robin over every (plan definition of the set × its mandatory step with a deadline, i.e. tolerance-days) pair, so the set matters; single-action: v1 behaviour, first plan definition + STEP_SLA_ACTION_ID only.",
+    "toBeConfirmed": true,
+    "enum": ["set", "single-action"]
+  },
+  "STEP_SLA_ACTION_ID": {
+    "default": "vitals-recording",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["step-sla"],
+    "description": "Action used by STEP_SLA_SEED_MODE=single-action; must be a mandatory ('must') action with a deadline (tolerance-days) of the set's first plan definition (the default fits emr-service; for kenya-sha-emr-service use e.g. consent-verification).",
+    "toBeConfirmed": false
+  },
+  "STEP_SLA_SEED_MISSED_ALARMS": {
+    "default": false,
+    "type": "boolean",
+    "unit": "",
+    "appliesTo": ["step-sla"],
+    "description": "Also seed MISSED rows (ring + 3 days). Off by default: avoids alarm storms days later.",
+    "toBeConfirmed": false
+  },
+  "STEP_SLA_PEAK_ALARM_RATE": {
+    "default": "auto",
+    "type": "rate",
+    "unit": "alarms/s",
+    "appliesTo": ["step-sla"],
+    "description": "Peak alarms per second for the Step SLA expectation and '× peak'. auto = ceil(PEAK_RATE × due alarms per event of the plan-definition set) (emr-service: 1, kenya-sha-emr-service: 1).",
+    "toBeConfirmed": true,
+    "allowAuto": true
+  },
+  "MAX_VUS": {
+    "default": 2000,
+    "type": "integer",
+    "unit": "VUs",
+    "appliesTo": ["collector"],
+    "description": "Upper bound for maxVUs of any HTTP scenario (virtual users k6 may start to keep the rate).",
+    "toBeConfirmed": false
+  },
+  "KAFKA_PRE_ALLOCATED_VUS": {
+    "default": 100,
+    "type": "integer",
+    "unit": "VUs",
+    "appliesTo": ["matcher"],
+    "description": "Kafka tests: VUs started up front; each VU owns one Kafka producer (threads + buffers). v1 value.",
+    "toBeConfirmed": true
+  },
+  "KAFKA_MAX_VUS": {
+    "default": 500,
+    "type": "integer",
+    "unit": "VUs",
+    "appliesTo": ["matcher"],
+    "description": "Kafka tests: most VUs (= producers) k6 may start. v1 value.",
+    "toBeConfirmed": true
+  },
+  "HTTP_P95_LIMIT_MS": {
+    "default": 500,
+    "type": "number",
+    "unit": "ms",
+    "appliesTo": ["collector"],
+    "description": "95th percentile HTTP response time must stay below this.",
+    "toBeConfirmed": true
+  },
+  "HTTP_MAX_FAILED_RATE": {
+    "default": 0.01,
+    "type": "number",
+    "unit": "ratio",
+    "appliesTo": ["collector"],
+    "description": "Share of failed HTTP requests must stay below this (0.01 = 1 %).",
+    "toBeConfirmed": true
+  },
+  "MIN_CHECKS_RATE": {
+    "default": 0.99,
+    "type": "number",
+    "unit": "ratio",
+    "appliesTo": ["collector", "matcher"],
+    "description": "Share of passed k6 checks (e.g. status is 202) must stay above this.",
+    "toBeConfirmed": false
+  },
+  "MAX_DROPPED_RATE": {
+    "default": 0.001,
+    "type": "number",
+    "unit": "ratio",
+    "appliesTo": ["collector", "matcher"],
+    "description": "Dropped iterations (events k6 could not start on time) allowed: below 0.1 % of planned events (D9). The exact count is always reported.",
+    "toBeConfirmed": true
+  },
+  "BREAKPOINT_MAX_DROPPED": {
+    "default": 1000,
+    "type": "integer",
+    "unit": "events",
+    "appliesTo": ["collector", "breakpoint"],
+    "description": "Abort the staircase after this many dropped iterations.",
+    "toBeConfirmed": false
+  },
+  "K6_LIMIT_P95_MS": {
+    "default": 100,
+    "type": "number",
+    "unit": "ms",
+    "appliesTo": ["collector", "matcher"],
+    "description": "Dropped iterations or rate shortfall while p95 is below this = the load generator's limit, not the service's ('at least X/s (k6 limit)').",
+    "toBeConfirmed": false
+  },
+  "RATE_SHORTFALL_TOLERANCE": {
+    "default": 0.05,
+    "type": "number",
+    "unit": "ratio",
+    "appliesTo": ["collector", "matcher"],
+    "description": "A window or level sending fewer than (1 − this) × target events counts as 'k6 could not send on time'.",
+    "toBeConfirmed": false
+  },
+  "MATCHER_MAX_BACKLOG": {
+    "default": 1000,
+    "type": "integer",
+    "unit": "events",
+    "appliesTo": ["matcher"],
+    "description": "Events waiting in Kafka for the matcher must never exceed this.",
+    "toBeConfirmed": true
+  },
+  "MATCHER_MAX_CATCH_UP": {
+    "default": "30s",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["matcher", "smoke", "load", "stress"],
+    "description": "After sending stops the matcher must have caught up (backlog ≤ 10) within this.",
+    "toBeConfirmed": true
+  },
+  "MATCHER_MAX_KAFKA_WRITE_ERRORS": {
+    "default": 0,
+    "type": "integer",
+    "unit": "errors",
+    "appliesTo": ["matcher"],
+    "description": "Kafka write errors allowed in k6.",
+    "toBeConfirmed": false
+  },
+  "MATCHER_MAX_DEAD_LETTERS": {
+    "default": 0,
+    "type": "integer",
+    "unit": "records",
+    "appliesTo": ["matcher"],
+    "description": "New dead-letter-topic records allowed during the run.",
+    "toBeConfirmed": false
+  },
+  "STEP_SLA_MAX_WAIT": {
+    "default": "auto",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["step-sla", "smoke", "load", "stress"],
+    "description": "Longest an alarm may wait after ringing before Step SLA handles it. auto = 2 × the environment's services.stepSla.pollIntervalSeconds.",
+    "toBeConfirmed": true,
+    "allowAuto": true
+  },
+  "STEP_SLA_STORM_MAX_CATCH_UP": {
+    "default": "5m",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["step-sla", "breakpoint"],
+    "description": "Storm: every alarm must be handled within this after the storm rang.",
+    "toBeConfirmed": true
+  },
+  "WATCH_INTERVAL": {
+    "default": "5s",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["all"],
+    "description": "Sampling interval of the watchers and the service-metrics sampler.",
+    "toBeConfirmed": false
+  },
+  "CATCH_UP_LIMIT": {
+    "default": "2m",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["matcher", "step-sla", "smoke", "load", "stress"],
+    "description": "How long watchers keep waiting for the backlog to clear after sending/ringing ends.",
+    "toBeConfirmed": false
+  },
+  "BREAKPOINT_CATCH_UP_LIMIT": {
+    "default": "15m",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["matcher", "step-sla", "breakpoint"],
+    "description": "Catch-up wait limit for breakpoint (flood/storm) runs.",
+    "toBeConfirmed": false
+  },
+  "STALL_TIMEOUT": {
+    "default": "30s",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["matcher", "step-sla"],
+    "description": "No progress for this long while more than 10 are waiting → the watcher aborts the run (stalled).",
+    "toBeConfirmed": false
+  },
+  "IDLE_FLAT_DURATION": {
+    "default": "30s",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["matcher", "step-sla", "collector", "cleanup"],
+    "description": "Counters flat (and nothing waiting) this long = the service is idle; checked before a run and by cleanup's 'still processing' guard.",
+    "toBeConfirmed": false
+  },
+  "IDLE_TIMEOUT": {
+    "default": "5m",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["collector", "matcher", "step-sla", "cleanup"],
+    "description": "Give up waiting for idle after this (refused, exit 2).",
+    "toBeConfirmed": false
+  },
+  "ALLOW_OTHER_ACTIVE_PLAN_DEFINITIONS": {
+    "default": false,
+    "type": "boolean",
+    "unit": "",
+    "appliesTo": ["matcher", "preflight"],
+    "description": "false: other ACTIVE plan definitions matching the dataset events fail preflight for the matcher; true: only a warning and data checks expect the extra fan-out.",
+    "toBeConfirmed": false
+  },
+  "EVENT_MODE": {
+    "default": "single",
+    "type": "enum",
+    "unit": "",
+    "appliesTo": ["collector", "matcher"],
+    "description": "Reserved: 'journey' (each iteration sends the patient's next journey step) is later work; only 'single' is accepted now.",
+    "toBeConfirmed": false,
+    "enum": ["single", "journey"]
+  },
+  "WORKLOAD_PROFILE": {
+    "default": "",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["collector", "matcher"],
+    "description": "Reserved for later (spec 007): path of a workload-profile JSON turned into ramping stages. Setting it now is refused (not implemented yet).",
+    "toBeConfirmed": false
+  },
+  "REPORT_WINDOW": {
+    "default": "10s",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["collector", "matcher", "step-sla"],
+    "description": "Window size for 'when it started breaking'; widened automatically so there are at most 200 windows.",
+    "toBeConfirmed": false
+  },
+  "BREAK_CONSECUTIVE_WINDOWS": {
+    "default": 2,
+    "type": "integer",
+    "unit": "windows",
+    "appliesTo": ["all"],
+    "description": "Windows (or samples) in a row that must break before 'started breaking' is reported.",
+    "toBeConfirmed": false
+  },
+  "SKIP_PREFLIGHT": {
+    "default": false,
+    "type": "boolean",
+    "unit": "",
+    "appliesTo": ["run"],
+    "description": "Skip the preflight check (recorded in the result; not recommended).",
+    "toBeConfirmed": false
+  },
+  "MONITORING_REQUIRED": {
+    "default": false,
+    "type": "boolean",
+    "unit": "",
+    "appliesTo": ["preflight"],
+    "description": "Prometheus/Grafana unreachable → preflight fails instead of warning.",
+    "toBeConfirmed": false
+  },
+  "PROMETHEUS_REMOTE_WRITE": {
+    "default": true,
+    "type": "boolean",
+    "unit": "",
+    "appliesTo": ["collector", "matcher"],
+    "description": "Send k6 metrics to Prometheus (remote write) when monitoring is enabled in the environment.",
+    "toBeConfirmed": false
+  },
+  "K6_TREND_STATS": {
+    "default": "p(95),p(99),avg,med,min,max",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["collector", "matcher"],
+    "description": "Trend statistics k6 sends by remote write (K6_PROMETHEUS_RW_TREND_STATS).",
+    "toBeConfirmed": false
+  },
+  "MIN_FREE_DISK_GB": {
+    "default": 20,
+    "type": "number",
+    "unit": "GB",
+    "appliesTo": ["preflight", "cleanup"],
+    "description": "Free disk required for results and (local) Docker data. The environment's safety.minFreeDiskGb overrides the default unless set by env var or --set.",
+    "toBeConfirmed": false
+  },
+  "CLEANUP_LEGACY_V1": {
+    "default": "auto",
+    "type": "enum",
+    "unit": "",
+    "appliesTo": ["cleanup"],
+    "description": "Also select v1 test data by JSONB subject (v1 events had random/UUIDv5 ids). auto = on when the run id is not yyyymmdd-hhmmss or with --all.",
+    "toBeConfirmed": false,
+    "enum": ["auto", "true", "false"]
+  },
+  "CLEANUP_BATCH_SIZE": {
+    "default": 10000,
+    "type": "integer",
+    "unit": "rows",
+    "appliesTo": ["cleanup"],
+    "description": "Rows per delete transaction.",
+    "toBeConfirmed": false
+  },
+  "CLEANUP_LOCK_TIMEOUT": {
+    "default": "5s",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["cleanup"],
+    "description": "lock_timeout per delete batch.",
+    "toBeConfirmed": false
+  },
+  "CLEANUP_PAUSE": {
+    "default": "200ms",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["cleanup"],
+    "description": "Pause between delete batches (lets WAL readers and autovacuum keep up).",
+    "toBeConfirmed": false
+  },
+  "CLEANUP_MIN_SAFE_WAL_GB": {
+    "default": 2,
+    "type": "number",
+    "unit": "GB",
+    "appliesTo": ["cleanup", "preflight"],
+    "description": "Stop cleanup when a replication slot's safe_wal_size falls below this.",
+    "toBeConfirmed": false
+  },
+  "CLEANUP_TEMP_INDEX": {
+    "default": "auto",
+    "type": "enum",
+    "unit": "",
+    "appliesTo": ["cleanup"],
+    "description": "Temporary step_instance(matched_event_id) index during cleanup; auto = only if the environment's safety.allowTempIndex.",
+    "toBeConfirmed": false,
+    "enum": ["auto", "always", "never"]
+  },
+  "PROTOCOL_REFRESH_WAIT": {
+    "default": "65s",
+    "type": "duration",
+    "unit": "s",
+    "appliesTo": ["plan-definitions"],
+    "description": "Wait after loading/retiring plan definitions: the matcher's refresh interval + 5 s.",
+    "toBeConfirmed": false
+  },
+  "PLAN_DEFINITION_VERSION_SUFFIX": {
+    "default": "",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["plan-definitions"],
+    "description": "Appended to each plan-definition version (e.g. -loadtest) to avoid clashing with real protocols on shared environments.",
+    "toBeConfirmed": true
+  },
+  "BASELINE": {
+    "default": "",
+    "type": "string",
+    "unit": "",
+    "appliesTo": ["run", "report", "baseline"],
+    "description": "Compare the run with this saved baseline (baselines/<name>.json) after it finishes.",
+    "toBeConfirmed": false
+  },
+  "BASELINE_TOLERANCE": {
+    "default": 20,
+    "type": "number",
+    "unit": "%",
+    "appliesTo": ["baseline"],
+    "description": "A metric counts as better/worse only beyond this percentage (and the unit floor: 5 ms, 2 s, 100 events, 5 events/s, 20 alarms/s).",
+    "toBeConfirmed": false
+  },
+  "BASELINE_MIN_RUNS": {
+    "default": 3,
+    "type": "integer",
+    "unit": "runs",
+    "appliesTo": ["baseline"],
+    "description": "Runs required per test to save a baseline (fewer only with --allow-fewer, marked provisional).",
+    "toBeConfirmed": false
+  }
+}

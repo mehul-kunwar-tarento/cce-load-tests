@@ -1,0 +1,9 @@
+{
+  "$comment": "What: plan-definition set 'kenya-sha-emr-service': the Kenya SHA EMR Service protocol used with the tibERbu EMR (kenya-sha-emr-service-protocol 1.0.0, from openphc/tiberbu-cce-emitter-adaptor) is the only plan definition ACTIVE, so every event of the tiberbu-emr dataset enrols the patient in 1 plan definition (enrolment on a proposed patient Consent; mandatory steps consent-request, consent-verification, visit-encounter, patient-check-in, diagnosis, four of them with a 1-day deadline). How: selected with PLAN_DEFINITION_SET=kenya-sha-emr-service; with DATASET empty the run then sends the tiberbu-emr dataset; tools/plan-definitions (sets.mjs) loads it, validates it offline and loads/retires its plan definition on request; the set is saved in every result's conditions. Needs: the files listed under planDefinitions (paths relative to test-data/). Outputs: the list of plan definitions that make up this test condition.",
+  "name": "kenya-sha-emr-service",
+  "description": "Kenya SHA EMR Service protocol for the tiberbu-emr dataset (1 plan definition, enrols on a proposed Consent, 5 mandatory steps, 4 with a deadline)",
+  "planDefinitions": [{ "file": "plan-definitions/kenya-sha-emr-service-protocol.json" }],
+  "compatibleDatasets": ["tiberbu-emr"],
+  "exclusive": false,
+  "requiresActionDefinitions": []
+}

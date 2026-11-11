@@ -1,0 +1,83 @@
+# prometheus.yml — what the laptop Prometheus scrapes, and how often
+#
+# What:    Scrape jobs for the CCE services under test (their Spring Boot /actuator/prometheus pages),
+#          the exporters of this stack (Kafka, Postgres, containers, host) and Prometheus itself. Job
+#          names are IDENTICAL to CCE's own Prometheus (openphc-repos/deploy-scripts/prometheus), so the
+#          dashboards' job filters work in both places. k6 metrics are not scraped: k6 pushes them by
+#          remote write (receiver switched on in docker-compose.yml).
+# How:     Mounted read-only into the prometheus container by monitoring/docker-compose.yml. After a
+#          change: docker compose -f monitoring/docker-compose.yml restart prometheus
+# Needs:   The containers named below on the Docker network cce-net (local-stack + this stack).
+# Outputs: Time series labelled job=<job name>, instance=<target>; see Status → Targets in the UI
+#          (http://localhost:9095/targets) to check every target is UP.
+
+global:
+  # 5 s (CCE uses 15 s): a 10-minute load test then has 120 points per series and a breaking point
+  # can be placed to within a few seconds. Note: every scrape of cce-step-sla-service runs one SQL
+  # count for the cce_sla_transitions_due gauge (see monitoring/README.md, "Observer effect").
+  scrape_interval: 5s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus's own health (scrape duration, samples received by remote write, …).
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ---- CCE services under test: container name : container port 8080 on cce-net -----------------
+  - job_name: 'cce-collector-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['cce-collector-service:8080']
+
+  - job_name: 'cce-matcher-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['cce-matcher-service:8080']
+
+  - job_name: 'cce-step-sla-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['cce-step-sla-service:8080']
+
+  # Not a test subject; scraped because it loads the plan definitions the matcher uses.
+  - job_name: 'cce-protocol-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['cce-protocol-service:8080']
+
+  # ---- Exporters of this stack (service name : default exporter port) -----------------------------
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # ---- Alternative: services running natively on the laptop (not in cce-net) ----------------------
+  # Comment out the three cce-* service jobs above and uncomment these. host.docker.internal is mapped
+  # to the host by extra_hosts in docker-compose.yml; ports are local-stack's published host ports.
+  #
+  # - job_name: 'cce-collector-service'
+  #   metrics_path: /actuator/prometheus
+  #   static_configs:
+  #     - targets: ['host.docker.internal:8093']
+  #
+  # - job_name: 'cce-matcher-service'
+  #   metrics_path: /actuator/prometheus
+  #   static_configs:
+  #     - targets: ['host.docker.internal:8097']
+  #
+  # - job_name: 'cce-step-sla-service'
+  #   metrics_path: /actuator/prometheus
+  #   static_configs:
+  #     - targets: ['host.docker.internal:8099']

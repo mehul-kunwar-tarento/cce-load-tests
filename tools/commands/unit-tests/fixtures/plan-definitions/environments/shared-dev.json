@@ -1,0 +1,73 @@
+{
+  "$comment": "What: a shared Dev environment (kind dev) that allows plan-definition writes. How: plan-definitions.spec.mjs checks that writes are refused without PLAN_DEFINITION_VERSION_SUFFIX and allowed with one. Needs: nothing. Outputs: nothing.",
+  "name": "shared-dev",
+  "kind": "dev",
+  "description": "Laptop running openphc-repos/local-stack (docker compose, network cce-net)",
+  "services": {
+    "collector": {
+      "baseUrl": "http://localhost:8093",
+      "healthPath": "/actuator/health",
+      "metricsPath": "/actuator/prometheus",
+      "prometheusJob": "cce-collector-service"
+    },
+    "matcher": {
+      "baseUrl": "http://localhost:8097",
+      "healthPath": "/actuator/health",
+      "metricsPath": "/actuator/prometheus",
+      "prometheusJob": "cce-matcher-service"
+    },
+    "stepSla": {
+      "baseUrl": "http://localhost:8099",
+      "healthPath": "/actuator/health",
+      "metricsPath": "/actuator/prometheus",
+      "prometheusJob": "cce-step-sla-service",
+      "pollIntervalSeconds": 5
+    },
+    "protocol": {
+      "baseUrl": "http://localhost:8096",
+      "healthPath": "/actuator/health",
+      "apiPath": "/v1/protocol/protocol-definitions",
+      "refreshIntervalSeconds": 60
+    }
+  },
+  "kafka": {
+    "brokers": ["localhost:29092"],
+    "inboundTopic": "cce.events.inbound",
+    "deadLetterTopic": "cce.events.inbound.dlq",
+    "matcherConsumerGroup": "cce-matcher-service",
+    "expectedPartitions": 25
+  },
+  "database": {
+    "host": "localhost",
+    "port": 15433,
+    "name": "ccedb",
+    "user": "cce_user",
+    "passwordEnvVar": "DB_PASSWORD",
+    "expectedTables": [
+      "inbound_event_log",
+      "matcher_event_log",
+      "protocol_instance",
+      "step_instance",
+      "step_sla_state_transition"
+    ],
+    "replicationSlots": ["cce_analytics_slot"]
+  },
+  "k6": {
+    "image": "cce-load-tests/k6:2.3.0-kafka2.2.0",
+    "dockerNetwork": "host"
+  },
+  "monitoring": {
+    "enabled": true,
+    "prometheusUrl": "http://localhost:9095",
+    "remoteWriteUrl": "http://localhost:9095/api/v1/write",
+    "grafanaUrl": "http://localhost:3030",
+    "grafanaUser": "admin"
+  },
+  "safety": {
+    "allowCleanup": true,
+    "allowTempIndex": true,
+    "allowPlanDefinitionChanges": true,
+    "minFreeDiskGb": 20
+  },
+  "settings": {}
+}

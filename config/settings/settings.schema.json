@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openphc.org/cce-performance-tests/settings.schema.json",
+  "$comment": "What: JSON Schema of config/settings/defaults.json (plan §3.2): one entry per setting, keyed by its UPPER_SNAKE_CASE name (identical to the environment variable that overrides it). How: documentation and editor help; tools/core/settings.mjs checks the same rules when it loads the file (and its unit tests check every entry). Needs: nothing. Outputs: nothing.",
+  "title": "CCE performance tests settings definitions",
+  "type": "object",
+  "properties": { "$comment": { "type": "string" } },
+  "patternProperties": {
+    "^[A-Z][A-Z0-9_]*$": { "$ref": "#/$defs/setting" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "setting": {
+      "type": "object",
+      "required": ["default", "type", "unit", "appliesTo", "description", "toBeConfirmed"],
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "type": ["string", "number", "boolean"],
+          "description": "Default value as written by a person: durations as text (\"10m\"), lists comma-separated, \"\" = unset (null), \"auto\" only when allowAuto is true."
+        },
+        "type": {
+          "enum": ["rate", "duration", "integer", "number", "boolean", "string", "list", "enum"]
+        },
+        "unit": { "type": "string" },
+        "appliesTo": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Tokens: all, subjects (collector, matcher, step-sla), test types (smoke, load, stress, breakpoint) and tools (run, preflight, cleanup, plan-definitions, baseline, report). A setting is relevant to a run when its subject tokens (if any) include the subject and its test-type tokens (if any) include the test type."
+        },
+        "description": { "type": "string" },
+        "toBeConfirmed": {
+          "type": "boolean",
+          "description": "true = value still to be confirmed from UAT/Dev data or by the team (TBC)."
+        },
+        "enum": { "type": "array", "items": { "type": "string" } },
+        "allowAuto": {
+          "type": "boolean",
+          "description": "true = the value 'auto' is accepted and resolved by tools/core/settings.mjs."
+        }
+      }
+    }
+  }
+}

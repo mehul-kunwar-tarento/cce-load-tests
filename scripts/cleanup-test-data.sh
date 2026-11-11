@@ -1,81 +1,20 @@
 #!/usr/bin/env bash
-# Deletes every row the load tests created: everything linked to a LOADTEST- patient, in every CCE
-# table. Shows the row counts first and deletes only after you type "yes".
+# cleanup-test-data.sh — delete the test data of one run (or all LOADTEST data), verified table by table
 #
-# Run: DB_PASSWORD=<password> ./scripts/cleanup-test-data.sh <env>      e.g. DB_PASSWORD=cce_pass ./scripts/cleanup-test-data.sh local
-# Needs: docker (psql runs from the postgres image) and jq.
-# Don't run it while a load test is still sending events.
+# What:    Thin entry point for `node tools/cli.mjs cleanup`. Removes the rows a load test left in CCE's database
+#          (child tables first, small batches, disk and replication-slot checks while it goes) and proves with
+#          before/after counts per table that nothing is left. Refuses on prod, while services still process
+#          the run's data, or when disk/WAL headroom is low.
+# How:     scripts/cleanup-test-data.sh local --run-id 20261105-142233 --print-sql   (show the SQL, connect to nothing)
+#          scripts/cleanup-test-data.sh local --run-id 20261105-142233 --dry-run     (count only, delete nothing)
+#          scripts/cleanup-test-data.sh local --run-id 20261105-142233               (delete; asks for "yes")
+#          scripts/cleanup-test-data.sh local --all --yes                            (every LOADTEST row)
+# Needs:   Node.js 22, npm install done; config/environments/<env>.json with safety.allowCleanup true;
+#          DB_PASSWORD (or database.passwordEnvVar) exported, except for --print-sql.
+# Outputs: The per-table table; cleanup JSON next to the run (results/<run>/cleanup-<stamp>.json) or in
+#          results/cleanup-<runId|all>-<stamp>/; exit 0 verified/dry-run, 1 incomplete, 2 refused, 3 tool error.
 set -euo pipefail
 
-ENV_NAME=${1:-}
-source "$(dirname "$0")/postgres-connection.sh"
-db_init "$ENV_NAME" "DB_PASSWORD=<password> $0 <env>"
-
-# The load-test rows: patients, their enrolments and steps, and the events they sent.
-# Temp tables last only for one psql run.
-FIND_TEST_ROWS="
-CREATE TEMP TABLE lt_protocol_instance AS
-  SELECT id FROM protocol_instance WHERE patient_id LIKE 'LOADTEST-%';
-CREATE TEMP TABLE lt_step_instance AS
-  SELECT id FROM step_instance WHERE protocol_instance_id IN (SELECT id FROM lt_protocol_instance);
--- Test events: those that came through the collector, plus those the matcher test wrote straight
--- to Kafka (no collector row, so found by the patient inside the FHIR resource).
-CREATE TEMP TABLE lt_event AS
-  SELECT cloudevents_id FROM inbound_event_log WHERE raw_payload->>'subject' LIKE 'LOADTEST-%'
-  UNION
-  SELECT cloudevents_id FROM matcher_event_log WHERE data->'subject'->>'reference' LIKE 'Patient/LOADTEST-%';
-ANALYZE lt_protocol_instance;
-ANALYZE lt_step_instance;
-ANALYZE lt_event;
-"
-
-echo "Database: $(jq -r '.db | "\(.user)@\(.host):\(.port)/\(.name)"' "$CONFIG")  (env: $ENV_NAME)"
-echo "Rows that will be deleted:"
-run_psql <<SQL
-$FIND_TEST_ROWS
-SELECT 'deviation' AS table_name, count(*) AS rows FROM deviation
-  WHERE step_instance_id IN (SELECT id FROM lt_step_instance)
-UNION ALL SELECT 'step_sla_state_transition', count(*) FROM step_sla_state_transition
-  WHERE step_instance_id IN (SELECT id FROM lt_step_instance)
-UNION ALL SELECT 'step_instance_history', count(*) FROM step_instance_history
-  WHERE step_instance_id IN (SELECT id FROM lt_step_instance)
-UNION ALL SELECT 'intelligence_event_log', count(*) FROM intelligence_event_log
-  WHERE protocol_instance_id IN (SELECT id FROM lt_protocol_instance) OR subject LIKE 'LOADTEST-%'
-UNION ALL SELECT 'step_instance', count(*) FROM lt_step_instance
-UNION ALL SELECT 'protocol_instance_history', count(*) FROM protocol_instance_history
-  WHERE protocol_instance_id IN (SELECT id FROM lt_protocol_instance)
-UNION ALL SELECT 'protocol_instance', count(*) FROM lt_protocol_instance
-UNION ALL SELECT 'matcher_event_log', count(*) FROM matcher_event_log
-  WHERE cloudevents_id IN (SELECT cloudevents_id FROM lt_event)
-UNION ALL SELECT 'inbound_event_log', count(*) FROM inbound_event_log
-  WHERE cloudevents_id IN (SELECT cloudevents_id FROM lt_event);
-SQL
-
-read -r -p "Delete these rows? Type yes: " answer
-if [[ "$answer" != "yes" ]]; then
-  echo "Nothing deleted."
-  exit 0
-fi
-
-# One transaction: either every delete happens or none. Children first, so foreign keys don't block.
-run_psql <<SQL
-BEGIN;
-$FIND_TEST_ROWS
-DELETE FROM deviation WHERE step_instance_id IN (SELECT id FROM lt_step_instance);
-DELETE FROM step_sla_state_transition WHERE step_instance_id IN (SELECT id FROM lt_step_instance);
-DELETE FROM step_instance_history WHERE step_instance_id IN (SELECT id FROM lt_step_instance);
-DELETE FROM intelligence_event_log
-  WHERE protocol_instance_id IN (SELECT id FROM lt_protocol_instance) OR subject LIKE 'LOADTEST-%';
-DELETE FROM step_instance WHERE id IN (SELECT id FROM lt_step_instance);
-DELETE FROM protocol_instance_history WHERE protocol_instance_id IN (SELECT id FROM lt_protocol_instance);
-DELETE FROM protocol_instance WHERE id IN (SELECT id FROM lt_protocol_instance);
--- step_instance.matched_event_id has a foreign key to matcher_event_log but no index, so without this
--- every deleted matcher_event_log row scans all of step_instance (hours for 100k+ events).
--- The index exists only inside this transaction; while it does, writes to step_instance wait.
-CREATE INDEX loadtest_cleanup_matched_event ON step_instance (matched_event_id);
-DELETE FROM matcher_event_log WHERE cloudevents_id IN (SELECT cloudevents_id FROM lt_event);
-DROP INDEX loadtest_cleanup_matched_event;
-DELETE FROM inbound_event_log WHERE cloudevents_id IN (SELECT cloudevents_id FROM lt_event);
-COMMIT;
-SQL
-echo "Done."
+# The repository root, so the script works from any folder.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec node "${ROOT}/tools/cli.mjs" cleanup "$@"

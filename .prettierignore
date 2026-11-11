@@ -1,0 +1,19 @@
+# What:    Paths Prettier must not format.
+# How:     Read by `prettier --check .` (npm run lint) and `prettier --write .` (npm run format).
+# Needs:   Nothing.
+# Outputs: Frozen, generated and hand-formatted files are left alone; Markdown is never reformatted so
+#          hand-written tables keep their layout.
+archive/
+# Root run outputs only (anchored, so tools/results/*.schema.json and report fixtures are still checked)
+/results/
+node_modules/
+.cache/
+package-lock.json
+**/*.md
+# Verbatim FHIR fixtures: kept byte-for-byte as exported/archived (plan §2.4; described in their READMEs)
+test-data/plan-definitions/
+# Not yet Prettier-formatted: these were hidden from Prettier by the old unanchored `results/` pattern.
+# Remove these two lines once `npx prettier --write tools/results tools/report/unit-tests/fixtures/results`
+# has been run (whitespace-only change; the specs parse the JSON).
+tools/results/
+tools/report/unit-tests/fixtures/results/

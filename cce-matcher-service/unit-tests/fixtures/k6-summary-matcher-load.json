@@ -1,0 +1,136 @@
+{
+  "metrics": {
+    "kafka_writer_message_count": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 30600,
+        "rate": 46.360827
+      }
+    },
+    "kafka_writer_error_count": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      },
+      "thresholds": {
+        "count<=0": {
+          "ok": true
+        }
+      }
+    },
+    "events_sent": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 30600,
+        "rate": 46.360827
+      }
+    },
+    "events_accepted": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 30600,
+        "rate": 46.360827
+      }
+    },
+    "events_sent{scenario:measure}": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 30000,
+        "rate": 45.451791
+      }
+    },
+    "events_accepted{scenario:measure}": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 30000,
+        "rate": 45.451791
+      }
+    },
+    "dropped_iterations": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      },
+      "thresholds": {
+        "count<=30": {
+          "ok": true
+        }
+      }
+    },
+    "checks": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 30600,
+        "fails": 0
+      },
+      "thresholds": {
+        "rate>0.99": {
+          "ok": true
+        }
+      }
+    },
+    "iterations": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 30600,
+        "rate": 46.360827
+      }
+    },
+    "vus_max": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 25,
+        "min": 25,
+        "max": 25
+      }
+    }
+  },
+  "setup_data": {
+    "k6StartedAtMs": 1793868753000
+  },
+  "root_group": {
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": [],
+    "checks": [
+      {
+        "name": "event handed to Kafka",
+        "path": "::event handed to Kafka",
+        "id": "0",
+        "passes": 30600,
+        "fails": 0
+      }
+    ]
+  },
+  "options": {
+    "summaryTrendStats": ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
+    "summaryTimeUnit": "",
+    "noColor": false
+  },
+  "state": {
+    "isStdOutTTY": false,
+    "isStdErrTTY": false,
+    "testRunDurationMs": 660040
+  },
+  "context": {
+    "runId": "20261105-142233",
+    "subject": "matcher",
+    "testType": "load",
+    "k6StartedAt": "2026-11-05T08:52:33.000Z",
+    "testRunDurationMs": 660040
+  }
+}

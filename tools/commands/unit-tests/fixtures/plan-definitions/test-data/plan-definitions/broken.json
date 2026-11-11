@@ -1,0 +1,37 @@
+{
+  "resourceType": "PlanDefinition",
+  "id": "broken",
+  "url": "http://example.org/loadtest/broken",
+  "version": "1.0.0",
+  "name": "Broken",
+  "action": [
+    {
+      "id": "only-step",
+      "type": {
+        "coding": [
+          {
+            "system": "http://openphc.org/fhir/CodeSystem/action-type",
+            "code": "step"
+          }
+        ]
+      },
+      "requiredBehavior": "could",
+      "trigger": [
+        {
+          "type": "named-event",
+          "data": [
+            {
+              "type": "Encounter"
+            }
+          ]
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://openphc.org/fhir/StructureDefinition/tolerance-days",
+          "valueInteger": 1
+        }
+      ]
+    }
+  ]
+}

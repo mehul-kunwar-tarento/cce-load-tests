@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "runId": "20261105-142233",
+  "subject": "matcher",
+  "service": "cce-matcher-service",
+  "idCode": "mat",
+  "testType": "smoke",
+  "phasePlan": {
+    "phases": [{ "name": "measure", "rate": 1, "durationSeconds": 30, "plannedEvents": 30 }]
+  },
+  "dataset": { "name": "ebuzima-emr", "source": "loadtest-emr" },
+  "planDefinitionSet": { "name": "single", "fanOut": 1 },
+  "startedAt": "2026-11-05T14:22:33.000+05:30"
+}

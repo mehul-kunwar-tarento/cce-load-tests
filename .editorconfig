@@ -1,0 +1,18 @@
+# What:    Editor settings shared by everyone working in this repository (https://editorconfig.org).
+# How:     Picked up automatically by most editors (VS Code needs the EditorConfig extension).
+# Needs:   Nothing.
+# Outputs: 2-space indentation, LF line endings, UTF-8 and a final newline in every file. There are no
+#          Makefiles here, so no file needs tabs.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+# Two trailing spaces are a line break in Markdown; keep them.
+trim_trailing_whitespace = false

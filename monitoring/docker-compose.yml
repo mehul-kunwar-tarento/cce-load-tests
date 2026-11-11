@@ -1,0 +1,175 @@
+# docker-compose.yml — laptop monitoring stack for CCE performance tests
+#
+# What:    Prometheus (with the remote-write receiver switched on, so k6 can PUSH its metrics) and
+#          Grafana (datasource and five dashboards provisioned), plus four exporters that turn Kafka,
+#          Postgres, Docker containers and the host disk into Prometheus metrics. Together they put what
+#          k6 sent and what each CCE service did on ONE timeline (lesson: the error you see is often
+#          several hops from its cause).
+# How:     Start local-stack first (it creates the Docker network cce-net), then from the repo root:
+#            export GRAFANA_ADMIN_PASSWORD=...  DB_PASSWORD=...     (or put them in monitoring/.env)
+#            docker compose -f monitoring/docker-compose.yml up -d     # start
+#            docker compose -f monitoring/docker-compose.yml down      # stop (keeps the data volumes)
+#          Grafana: http://localhost:3030 (anonymous = read-only viewer; admin / $GRAFANA_ADMIN_PASSWORD)
+#          Prometheus: http://localhost:9095 (k6 remote write: http://localhost:9095/api/v1/write)
+#          Check the file without starting anything (dummy secrets, because the real ones are required):
+#            GRAFANA_ADMIN_PASSWORD=dummy DB_PASSWORD=dummy docker compose -f monitoring/docker-compose.yml config --quiet
+# Needs:   Docker with Compose v2; the external network ${CCE_NETWORK:-cce-net} with the CCE containers
+#          (cce-collector-service, cce-matcher-service, cce-step-sla-service, cce-protocol-service,
+#          kafka, postgres); env vars GRAFANA_ADMIN_PASSWORD and DB_PASSWORD (never written in this file).
+#          Optional: PROMETHEUS_PORT (9095), GRAFANA_PORT (3030), CCE_NETWORK (cce-net).
+# Outputs: Containers perf-prometheus, perf-grafana, perf-kafka-exporter, perf-postgres-exporter,
+#          perf-cadvisor, perf-node-exporter; named volumes prometheus-data (15 days) and grafana-data.
+#
+# Versions match CCE's own stack (openphc-repos/deploy-scripts) so dashboards behave the same in both.
+# Container names start with "perf-" so they never clash with CCE's cce-prometheus / cce-grafana and do
+# not show up in the dashboards' container panels (which select name=~"cce-.*").
+
+# Compose project name: keeps volumes and containers of this stack together and apart from local-stack.
+name: cce-performance-monitoring
+
+# Shared logging limits (an extension field, reused with a YAML anchor): stops long test days from
+# filling the disk with container logs.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  # ---------------------------------------------------------------- Prometheus (metrics database)
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: perf-prometheus
+    logging: *default-logging
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      # Keep two weeks of runs so before/after comparisons can be looked at again.
+      - '--storage.tsdb.retention.time=15d'
+      # Lets k6 PUSH metrics (k6 -o experimental-prometheus-rw). Without it /api/v1/write returns 404
+      # and every k6 panel stays empty (the test itself still runs).
+      - '--web.enable-remote-write-receiver'
+    ports:
+      # Host 9095 → container 9090 (9090 is CCE's own Prometheus port on shared hosts).
+      - '${PROMETHEUS_PORT:-9095}:9090'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    # Only needed by the commented host-port alternative in prometheus.yml (services run natively).
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    networks:
+      - cce-net
+
+  # ---------------------------------------------------------------- Grafana (dashboards)
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: perf-grafana
+    logging: *default-logging
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      # Required, never stored here. Applied when Grafana creates its database (first start); to change
+      # it later see monitoring/README.md ("Changing the admin password").
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD (see monitoring/README.md)}
+      # Anyone on the laptop can LOOK without logging in; changing dashboards or writing annotations
+      # needs the admin login or an API token.
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      # Open the overview straight away instead of Grafana's welcome page.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/cce-performance-overview.json
+      # A laptop stack has no reason to phone home.
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+    ports:
+      # Host 3030 → container 3000 (3000 is CCE's Grafana, 3001 is taken on the laptop).
+      - '${GRAFANA_PORT:-3030}:3000'
+    volumes:
+      - grafana-data:/var/lib/grafana
+      # Read-only: the files in this repository stay the source of truth for datasource and dashboards.
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - cce-net
+
+  # ---------------------------------------------------------------- Kafka exporter (consumer lag)
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.7.0
+    container_name: perf-kafka-exporter
+    logging: *default-logging
+    command:
+      # Broker address inside cce-net (local-stack's container "kafka"). Gives kafka_consumergroup_lag
+      # (the matcher's backlog) and kafka_topic_partition_current_offset (topic growth, DLQ).
+      - '--kafka.server=kafka:9092'
+    networks:
+      - cce-net
+
+  # ---------------------------------------------------------------- Postgres exporter (DB, WAL, slots)
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: perf-postgres-exporter
+    logging: *default-logging
+    environment:
+      # local-stack's database container is reachable as "postgres" on cce-net.
+      DATA_SOURCE_URI: 'postgres:5432/ccedb?sslmode=disable'
+      DATA_SOURCE_USER: cce_user
+      # Required, never stored here (same DB_PASSWORD the test tooling uses).
+      DATA_SOURCE_PASS: ${DB_PASSWORD:?set DB_PASSWORD (see monitoring/README.md)}
+    networks:
+      - cce-net
+
+  # ---------------------------------------------------------------- cAdvisor (container CPU / memory)
+  # On by default: process_cpu_usage inside a JVM is misleading in containers; cAdvisor measures what
+  # each container really uses (container_cpu_usage_seconds_total, container_memory_working_set_bytes).
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: perf-cadvisor
+    logging: *default-logging
+    # cAdvisor reads cgroups and the Docker state of the host; that needs these privileges and mounts.
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    command:
+      # Only Docker containers (not every systemd slice) and a 5 s refresh to match the scrape interval.
+      - '--docker_only=true'
+      - '--housekeeping_interval=5s'
+      # Container labels would add many series; the "name" label is enough for the dashboards.
+      - '--store_container_labels=false'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - cce-net
+
+  # ---------------------------------------------------------------- node-exporter (host disk / CPU)
+  # On by default: sees the host root file system, so the disk holding the Docker data root (where the
+  # Postgres WAL and Kafka logs live) is visible as node_filesystem_avail_bytes{mountpoint="/"}.
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: perf-node-exporter
+    logging: *default-logging
+    command:
+      # Report the host's file systems (mounted at /host) under their host paths ("/" not "/host").
+      - '--path.rootfs=/host'
+      # Skip pseudo file systems; "$$" is a literal "$" (Compose would otherwise read it as a variable).
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - cce-net
+
+# The CCE network is created by local-stack (or deploy-scripts); this stack only joins it, so Prometheus
+# can reach the services by container name. Override with CCE_NETWORK if yours is named differently.
+networks:
+  cce-net:
+    external: true
+    name: ${CCE_NETWORK:-cce-net}
+
+volumes:
+  prometheus-data:
+  grafana-data:

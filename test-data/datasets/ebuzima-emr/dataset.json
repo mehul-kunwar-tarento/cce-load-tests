@@ -1,0 +1,302 @@
+{
+  "$comment": "What: the first test-data set: the FHIR resources an EMR sends for each step (action id) of the base plan definition test-data/plan-definitions/emr-service-protocol.json, ported from the eBUZIMA builders of the first version (the first version's lib/ebuzima.js) and turned into templates. Encounter types carry a display only (no code), as this EMR sends them; the matcher matches on the display. Every resource has subject Patient/<patient id> and a clinical time the matcher reads (period.start, effectiveDateTime, authoredOn, recordedDate). How: chosen with the setting DATASET=ebuzima-emr; tools/core (Node) loads it, drops every $comment and puts it in run-context.json; lib/test-data.js fills a template per iteration ({{patientId}}, {{eventId}}, {{facilityId}}, {{time}}, {{endTime}}) and wraps it in a CloudEvent with this file's source and facilityId (overridable with EVENT_SOURCE and FACILITY_ID). Needs: nothing; placeholders are filled at run time. Outputs: event templates per action id, the default action id (EVENT_ACTION_ID default) and patient journeys (lists of action ids, reserved for EVENT_MODE=journey, later work).",
+  "name": "ebuzima-emr",
+  "description": "Outpatient diabetes screening visit as sent by the eBUZIMA EMR: check-in, vitals, consultation and its sub-steps (complaints, history, lab order/results, diagnosis, treatment, referral). Matches the base plan definition emr-service-protocol 1.0.0 and its load-test variants.",
+  "source": "loadtest-emr",
+  "facilityId": "LOADTEST-FACILITY-01",
+  "defaultActionId": "visit-encounter",
+  "eventTemplates": {
+    "visit-encounter": {
+      "$comment": "Nursing-station check-in; enrols the patient in every plan definition whose first step matches VISIT_ENCOUNTER.",
+      "resourceType": "Encounter",
+      "id": "{{eventId}}",
+      "status": "finished",
+      "class": {
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+        "code": "AMB",
+        "display": "ambulatory"
+      },
+      "type": [{ "coding": [{ "display": "VISIT_ENCOUNTER" }] }],
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "period": { "start": "{{time}}", "end": "{{endTime}}" },
+      "hospitalization": { "origin": { "reference": "Location/{{facilityId}}" } }
+    },
+    "vitals-recording": {
+      "$comment": "Vital signs observation (LOINC 8716-3).",
+      "resourceType": "Observation",
+      "id": "{{eventId}}",
+      "status": "final",
+      "category": [
+        {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+              "code": "vital-signs"
+            }
+          ]
+        }
+      ],
+      "code": {
+        "coding": [{ "system": "http://loinc.org", "code": "8716-3", "display": "Vital signs" }]
+      },
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "effectiveDateTime": "{{time}}",
+      "valueString": "BP 120/80"
+    },
+    "consultation": {
+      "$comment": "Clinical consultation encounter; parent step of the consultation sub-steps.",
+      "resourceType": "Encounter",
+      "id": "{{eventId}}",
+      "status": "finished",
+      "class": {
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+        "code": "AMB",
+        "display": "ambulatory"
+      },
+      "type": [{ "coding": [{ "display": "CONSULTATION_ENCOUNTER" }] }],
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "period": { "start": "{{time}}", "end": "{{endTime}}" },
+      "hospitalization": { "origin": { "reference": "Location/{{facilityId}}" } }
+    },
+    "chief-complaints": {
+      "$comment": "Chief complaints observation (LOINC 33747-0).",
+      "resourceType": "Observation",
+      "id": "{{eventId}}",
+      "status": "final",
+      "category": [
+        {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+              "code": "exam"
+            }
+          ]
+        }
+      ],
+      "code": {
+        "coding": [
+          { "system": "http://loinc.org", "code": "33747-0", "display": "Chief Complaints" }
+        ]
+      },
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "effectiveDateTime": "{{time}}",
+      "valueString": "headache"
+    },
+    "history-assessment": {
+      "$comment": "History of present illness observation (LOINC 10164-2).",
+      "resourceType": "Observation",
+      "id": "{{eventId}}",
+      "status": "final",
+      "category": [
+        {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+              "code": "exam"
+            }
+          ]
+        }
+      ],
+      "code": {
+        "coding": [
+          {
+            "system": "http://loinc.org",
+            "code": "10164-2",
+            "display": "History of Present illness Narrative"
+          }
+        ]
+      },
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "effectiveDateTime": "{{time}}",
+      "valueString": "none"
+    },
+    "lab-order": {
+      "$comment": "Blood glucose lab order (ServiceRequest, LOINC 2339-0).",
+      "resourceType": "ServiceRequest",
+      "id": "{{eventId}}",
+      "status": "active",
+      "intent": "order",
+      "code": {
+        "coding": [
+          {
+            "system": "http://loinc.org",
+            "code": "2339-0",
+            "display": "Glucose [Mass/volume] in Blood"
+          }
+        ]
+      },
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "authoredOn": "{{time}}"
+    },
+    "lab-results": {
+      "$comment": "Blood glucose result (Observation, LOINC 2339-0).",
+      "resourceType": "Observation",
+      "id": "{{eventId}}",
+      "status": "final",
+      "category": [
+        {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+              "code": "laboratory"
+            }
+          ]
+        }
+      ],
+      "code": {
+        "coding": [
+          {
+            "system": "http://loinc.org",
+            "code": "2339-0",
+            "display": "Glucose [Mass/volume] in Blood"
+          }
+        ]
+      },
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "effectiveDateTime": "{{time}}",
+      "valueQuantity": {
+        "value": 140,
+        "unit": "mg/dL",
+        "system": "http://unitsofmeasure.org",
+        "code": "mg/dL"
+      }
+    },
+    "diagnosis": {
+      "$comment": "Diagnosis (Condition, SNOMED 44054006 type 2 diabetes).",
+      "resourceType": "Condition",
+      "id": "{{eventId}}",
+      "clinicalStatus": {
+        "coding": [
+          { "system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active" }
+        ]
+      },
+      "code": {
+        "coding": [
+          {
+            "system": "http://snomed.info/sct",
+            "code": "44054006",
+            "display": "Diabetes mellitus type 2"
+          }
+        ]
+      },
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "recordedDate": "{{time}}"
+    },
+    "treatment": {
+      "$comment": "Treatment prescription (MedicationRequest, RxNorm 860975 Metformin).",
+      "resourceType": "MedicationRequest",
+      "id": "{{eventId}}",
+      "status": "active",
+      "intent": "order",
+      "medicationCodeableConcept": {
+        "coding": [
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "code": "860975",
+            "display": "Metformin 500 MG"
+          }
+        ]
+      },
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "authoredOn": "{{time}}"
+    },
+    "referral": {
+      "$comment": "Referral (transfer encounter).",
+      "resourceType": "Encounter",
+      "id": "{{eventId}}",
+      "status": "finished",
+      "class": {
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+        "code": "AMB",
+        "display": "ambulatory"
+      },
+      "type": [{ "coding": [{ "display": "TRANSFER_ENCOUNTER" }] }],
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "period": { "start": "{{time}}", "end": "{{endTime}}" },
+      "hospitalization": { "origin": { "reference": "Location/{{facilityId}}" } }
+    }
+  },
+  "journeys": [
+    ["visit-encounter"],
+    ["visit-encounter", "vitals-recording", "consultation", "chief-complaints"],
+    ["visit-encounter", "vitals-recording", "consultation", "chief-complaints"],
+    [
+      "visit-encounter",
+      "vitals-recording",
+      "consultation",
+      "chief-complaints",
+      "history-assessment",
+      "lab-order",
+      "lab-results",
+      "diagnosis",
+      "treatment"
+    ],
+    [
+      "visit-encounter",
+      "vitals-recording",
+      "consultation",
+      "chief-complaints",
+      "history-assessment",
+      "lab-order",
+      "lab-results",
+      "diagnosis",
+      "treatment"
+    ],
+    [
+      "visit-encounter",
+      "vitals-recording",
+      "consultation",
+      "chief-complaints",
+      "history-assessment",
+      "lab-order",
+      "lab-results",
+      "diagnosis",
+      "treatment"
+    ],
+    [
+      "visit-encounter",
+      "vitals-recording",
+      "consultation",
+      "chief-complaints",
+      "history-assessment",
+      "lab-order",
+      "lab-results",
+      "diagnosis",
+      "treatment"
+    ],
+    [
+      "visit-encounter",
+      "vitals-recording",
+      "consultation",
+      "chief-complaints",
+      "history-assessment",
+      "lab-order",
+      "lab-results",
+      "diagnosis",
+      "treatment"
+    ],
+    [
+      "visit-encounter",
+      "vitals-recording",
+      "consultation",
+      "chief-complaints",
+      "history-assessment",
+      "lab-order",
+      "lab-results",
+      "diagnosis",
+      "treatment"
+    ],
+    [
+      "visit-encounter",
+      "vitals-recording",
+      "consultation",
+      "chief-complaints",
+      "history-assessment",
+      "lab-order",
+      "lab-results",
+      "diagnosis",
+      "treatment",
+      "referral"
+    ]
+  ]
+}

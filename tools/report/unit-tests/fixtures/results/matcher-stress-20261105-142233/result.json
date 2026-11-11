@@ -1,0 +1,144 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "cce-performance-result",
+  "runId": "20261105-142233",
+  "service": "cce-matcher-service",
+  "subject": "matcher",
+  "testType": "stress",
+  "status": "failed",
+  "statusReason": "Failed: Events waiting in Kafka never above 1,000; not caught up: 11,474 events still waiting after 120 s",
+  "startedAt": "2026-11-05T14:22:33.000+05:30",
+  "endedAt": "2026-11-05T14:34:55.100+05:30",
+  "durationSeconds": 742.1,
+  "timing": {
+    "source": "k6-setup",
+    "k6StartedAt": "2026-11-05T14:22:40.000+05:30",
+    "measureStart": "2026-11-05T14:23:40.000+05:30",
+    "sendEnd": "2026-11-05T14:33:40.000+05:30",
+    "sendEndedEarly": false
+  },
+  "phases": [
+    { "name": "warm-up", "startedAt": "2026-11-05T14:22:40.000+05:30", "endedAt": "2026-11-05T14:23:40.000+05:30", "rate": 10, "plannedEvents": 600 },
+    { "name": "measure", "startedAt": "2026-11-05T14:23:40.000+05:30", "endedAt": "2026-11-05T14:33:40.000+05:30", "rate": 200, "plannedEvents": 120000 },
+    { "name": "catch-up", "startedAt": "2026-11-05T14:33:40.000+05:30", "endedAt": "2026-11-05T14:35:40.000+05:30", "rate": null, "plannedEvents": null }
+  ],
+  "expectation": {
+    "summary": "Withstand 200 events/s (4 × peak 50/s) for 10m: backlog never above 1,000, caught up < 30 s after sending stops.",
+    "targetRate": 200,
+    "peakRate": 50,
+    "multipleOfPeak": 4,
+    "unit": "events",
+    "toBeConfirmed": true
+  },
+  "load": {
+    "unit": "events",
+    "plannedEvents": 120600,
+    "eventsSent": 120598,
+    "eventsAccepted": 120598,
+    "eventsFailed": 0,
+    "eventsDropped": 2,
+    "droppedRate": 0.0000166,
+    "droppedAllowed": 120,
+    "eventsProcessed": 109124,
+    "measuredEventsSent": 119998,
+    "measuredEventsAccepted": 119998,
+    "measuredSeconds": 600,
+    "averageRate": 199.99,
+    "targetRate": 200
+  },
+  "latency": null,
+  "thresholds": [
+    { "id": "k6.kafka_writer_error_count", "metric": "kafka_writer_error_count", "rule": "count <= 0", "limit": 0, "actual": 0, "unit": "errors", "passed": true, "toBeConfirmed": false, "source": "k6", "description": "at most 0 Kafka write errors" },
+    { "id": "k6.dropped_iterations", "metric": "dropped_iterations", "rule": "count <= 120", "limit": 120, "actual": 2, "unit": "events", "passed": true, "toBeConfirmed": true, "source": "k6", "description": "at most 120 events k6 could not send on time (dropped iterations)" },
+    { "id": "matcher.backlog", "metric": "backlog", "rule": "max < 1000", "limit": 1000, "actual": 28810, "unit": "events", "passed": false, "toBeConfirmed": true, "source": "watcher", "description": "Events waiting in Kafka never above 1,000" },
+    { "id": "matcher.catch-up", "metric": "catchUpSeconds", "rule": "caught up within 30 s", "limit": 30, "actual": null, "unit": "s", "passed": false, "toBeConfirmed": true, "source": "watcher", "description": "Caught up within 30 s after sending stopped" },
+    { "id": "matcher.dead-letters", "metric": "deadLetters", "rule": "count <= 0", "limit": 0, "actual": 0, "unit": "events", "passed": true, "toBeConfirmed": false, "source": "watcher", "description": "No new dead-letter records" }
+  ],
+  "breaking": {
+    "broke": true,
+    "startedBreakingAt": "2026-11-05T14:24:11.000+05:30",
+    "secondsIntoMeasure": 31,
+    "rateAtBreak": 200,
+    "whatBroke": [
+      { "metric": "backlog", "description": "up to 28,811 events waiting (rule < 1,000)", "actual": 28811, "limit": 1000, "source": "watcher" },
+      { "metric": "catchUpSeconds", "description": "not caught up: 11,474 events still waiting after 120 s", "actual": 11474, "limit": 30, "source": "watcher" },
+      { "metric": "hikariPendingMax", "description": "matcher DB pool: requests waiting for a connection from 14:24:02 (diagnostic)", "actual": 7, "limit": null, "source": "service-metrics", "firstAt": "2026-11-05T14:24:02.000+05:30" }
+    ],
+    "heldUpTo": null,
+    "brokeAtRate": null,
+    "k6Limited": false,
+    "caughtUp": false,
+    "catchUpSeconds": null,
+    "remainingBacklog": 11474,
+    "gaveUpAfterSeconds": 120,
+    "drainRate": 155.8
+  },
+  "levels": null,
+  "timeSeries": {
+    "windowSeconds": 10,
+    "points": [
+      { "t": 0, "at": "2026-11-05T14:23:40.000+05:30", "phase": "measure", "level": null, "sent": 2000, "sentPerSecond": 200, "p95Ms": null, "failedRate": null, "backlog": 120, "processedPerSecond": 188.3, "broken": false },
+      { "t": 30, "at": "2026-11-05T14:24:10.000+05:30", "phase": "measure", "level": null, "sent": 2000, "sentPerSecond": 200, "p95Ms": null, "failedRate": null, "backlog": 1450, "processedPerSecond": 160.2, "broken": true }
+    ]
+  },
+  "serviceMetrics": {
+    "file": "service-metrics.json",
+    "peaks": {
+      "matcher": {
+        "hikariPendingMax": { "value": 7, "firstAt": "2026-11-05T14:24:02.000+05:30" },
+        "heapUsedMaxBytes": { "value": 812000000, "firstAt": null },
+        "gcPauseMaxMs": { "value": 48, "firstAt": null },
+        "processCpuMax": { "value": 0.71, "firstAt": null },
+        "processingMsAvg": { "value": 17.2, "firstAt": null }
+      }
+    }
+  },
+  "dataChecks": [
+    { "id": "matcher.logged-equals-sent", "description": "Every event sent is in matcher_event_log", "expected": 120598, "actual": 120598, "comparison": "equals", "passed": true, "severity": "required" },
+    { "id": "matcher.enrolments-equal-fan-out", "description": "Enrolments = effective fan-out × patients", "expected": 482392, "actual": 482392, "comparison": "equals", "passed": true, "severity": "required" },
+    { "id": "matcher.steps-created", "description": "Step instances = expected rows × events", "expected": 844186, "actual": 844186, "comparison": "equals", "passed": true, "severity": "info" }
+  ],
+  "conditions": {
+    "environment": { "name": "local", "kind": "local", "configFile": "config/environments/local.json", "serviceUrls": { "collector": "http://localhost:8093", "matcher": "http://localhost:8097", "stepSla": "http://localhost:8099", "protocol": "http://localhost:8096" } },
+    "host": { "hostname": "perf-laptop", "cpus": 16, "memoryGb": 31, "os": "linux 7.0.0", "node": "v22.22.2", "k6Image": "cce-load-tests/k6:2.3.0-kafka2.2.0", "k6Version": null },
+    "suite": { "gitCommit": "abc1234", "gitDirty": true },
+    "planDefinitionSet": {
+      "name": "overlapping-4",
+      "fanOut": 4,
+      "planDefinitions": [
+        { "name": "EmrServiceProtocol", "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol", "version": "1.0.0", "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol|1.0.0", "status": "ACTIVE", "id": "0192f3a1-2b3c-7000-8000-000000000001", "updatedAt": "2026-11-05T10:00:00.000+05:30", "mandatorySteps": ["visit-encounter", "vitals-recording", "consultation"] },
+        { "name": "EmrServiceProtocolStrict", "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict", "version": "1.0.0", "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict|1.0.0", "status": "ACTIVE", "id": "0192f3a1-2b3c-7000-8000-000000000002", "updatedAt": "2026-11-05T10:00:00.000+05:30", "mandatorySteps": ["visit-encounter", "vitals-recording", "consultation", "complaints", "history", "diagnosis", "treatment"] },
+        { "name": "EmrServiceProtocolLight", "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light", "version": "1.0.0", "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light|1.0.0", "status": "ACTIVE", "id": "0192f3a1-2b3c-7000-8000-000000000003", "updatedAt": "2026-11-05T10:00:00.000+05:30", "mandatorySteps": ["vitals-recording"] },
+        { "name": "EmrServiceProtocolLabFocus", "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus", "version": "1.0.0", "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus|1.0.0", "status": "ACTIVE", "id": "0192f3a1-2b3c-7000-8000-000000000004", "updatedAt": "2026-11-05T10:00:00.000+05:30", "mandatorySteps": ["visit-encounter", "vitals-recording", "lab-order", "lab-results", "diagnosis"] }
+      ],
+      "otherActivePlanDefinitions": [],
+      "effectiveFanOut": 4,
+      "loadTestMarker": true,
+      "stepSlaSeedMode": null
+    },
+    "dataset": { "name": "ebuzima-emr", "source": "loadtest-emr", "facilityId": "LOADTEST-FACILITY-01", "actionId": "visit-encounter" },
+    "dataVolume": { "capturedAt": "2026-11-05T14:22:35.000+05:30", "dbSizeBytes": 1610612736, "rows": { "inbound_event_log": 250000, "matcher_event_log": 250000, "protocol_instance": 900000, "step_instance": 1500000, "step_sla_state_transition": 1200000 } },
+    "settings": {
+      "PEAK_RATE": { "value": 50, "source": "default" },
+      "EXPECTED_HEADROOM": { "value": 4, "source": "default" },
+      "STRESS_RATE": { "value": 200, "source": "default" },
+      "STRESS_DURATION": { "value": 600, "source": "default" },
+      "WARM_UP_RATE": { "value": 10, "source": "default" },
+      "WARM_UP_DURATION": { "value": 60, "source": "default" },
+      "MAX_DROPPED_RATE": { "value": 0.001, "source": "default" },
+      "MATCHER_MAX_BACKLOG": { "value": 1000, "source": "default" },
+      "MATCHER_MAX_CATCH_UP": { "value": 30, "source": "default" },
+      "CATCH_UP_LIMIT": { "value": 120, "source": "default" },
+      "PLAN_DEFINITION_SET": { "value": "overlapping-4", "source": "cli" },
+      "DATASET": { "value": "ebuzima-emr", "source": "default" },
+      "STEP_SLA_PEAK_ALARM_RATE": { "value": 150, "source": "derived" }
+    },
+    "preflight": { "status": "passed-with-warnings", "skipped": false, "warnings": ["autovacuum: 1 vacuum in progress"] },
+    "note": ""
+  },
+  "baselineComparison": null,
+  "refinedFrom": null,
+  "artifacts": { "runContext": "run-context.json", "k6Summary": "k6-summary.json", "k6Log": "k6.log", "preflight": "preflight.json", "watchers": ["watch-backlog.json"], "serviceMetrics": "service-metrics.json", "dataChecks": "data-checks.json", "seedManifest": null, "k6ExitCode": 0 },
+  "warnings": [],
+  "notes": []
+}

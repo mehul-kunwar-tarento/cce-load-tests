@@ -1,0 +1,331 @@
+{
+  "$comment": "What: the tibERbu dataset: the FHIR resources the tibERbu emitter adaptor (openphc/tiberbu-cce-emitter-adaptor, release-1.0.0) forwards for each step (action id) of test-data/plan-definitions/kenya-sha-emr-service-protocol.json, as templates. Shapes follow the adaptor's own test fixtures (src/test/resources/fhir/*.json) after its ClinicalDataRedactor: only what CCE needs is kept, i.e. the patient reference (subject or patient), every element the Kenya protocol triggers on (Consent status/category, EpisodeOfCare type/status, Encounter class/type, Observation category/status, ServiceRequest category/status, MedicationRequest status/category, Composition type), the clinical time and the Organization reference the adaptor reads the facility from (Consent.organization, EpisodeOfCare.managingOrganization, Encounter.serviceProvider, Composition.custodian, ServiceRequest.performer). Codes use the protocol's systems (LOINC, SNOMED, HL7, the SHA episode-of-care type system); each template matches exactly one action. How: chosen with DATASET=tiberbu-emr, or automatically with PLAN_DEFINITION_SET=kenya-sha-emr-service and DATASET empty; tools/core loads it, drops every $comment and puts it in run-context.json; lib/test-data.js fills a template per iteration ({{patientId}}, {{eventId}}, {{facilityId}}, {{time}}, {{endTime}}) and wraps it in a CloudEvent with this file's source and facilityId (overridable with EVENT_SOURCE and FACILITY_ID). Needs: nothing; placeholders are filled at run time. Outputs: event templates per action id, the default action id (consent-request, the protocol's enrolment step) and patient journeys (reserved for EVENT_MODE=journey, later work).",
+  "name": "tiberbu-emr",
+  "description": "Kenya SHA outpatient visit as forwarded by the tibERbu emitter adaptor: consent request and verification, OPD episode of care, check-in, vitals, consultation and its sub-steps (lab order/results, diagnosis, medication request/dispense, procedure order/procedure), patient summary and visit closure. Matches kenya-sha-emr-service-protocol 1.0.0.",
+  "source": "loadtest-emr",
+  "facilityId": "LOADTEST-FACILITY-01",
+  "defaultActionId": "consent-request",
+  "eventTemplates": {
+    "consent-request": {
+      "$comment": "Patient privacy consent requested (status proposed); enrols the patient in the Kenya protocol.",
+      "resourceType": "Consent",
+      "id": "{{eventId}}",
+      "status": "proposed",
+      "scope": {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/consentscope",
+            "code": "patient-privacy",
+            "display": "Privacy Consent"
+          }
+        ]
+      },
+      "category": [
+        {
+          "coding": [
+            { "system": "http://loinc.org", "code": "59284-0", "display": "Patient Consent" }
+          ]
+        }
+      ],
+      "patient": { "reference": "Patient/{{patientId}}" },
+      "dateTime": "{{time}}",
+      "organization": [{ "reference": "Organization/{{facilityId}}" }]
+    },
+    "consent-verification": {
+      "$comment": "The same consent verified (status active, e.g. by OTP).",
+      "resourceType": "Consent",
+      "id": "{{eventId}}",
+      "status": "active",
+      "scope": {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/consentscope",
+            "code": "patient-privacy",
+            "display": "Privacy Consent"
+          }
+        ]
+      },
+      "category": [
+        {
+          "coding": [
+            { "system": "http://loinc.org", "code": "59284-0", "display": "Patient Consent" }
+          ]
+        }
+      ],
+      "patient": { "reference": "Patient/{{patientId}}" },
+      "dateTime": "{{time}}",
+      "organization": [{ "reference": "Organization/{{facilityId}}" }]
+    },
+    "visit-encounter": {
+      "$comment": "Outpatient (general OPD) episode of care opened.",
+      "resourceType": "EpisodeOfCare",
+      "id": "{{eventId}}",
+      "status": "active",
+      "type": [
+        {
+          "coding": [
+            {
+              "system": "https://nshr-uat.sha.go.ke/fhir/CodeSystem/ke-episode-of-care-type-cs",
+              "code": "general-opd",
+              "display": "General Outpatient"
+            }
+          ]
+        }
+      ],
+      "patient": { "reference": "Patient/{{patientId}}" },
+      "period": { "start": "{{time}}" },
+      "managingOrganization": { "reference": "Organization/{{facilityId}}" }
+    },
+    "patient-check-in": {
+      "$comment": "Ambulatory check-in encounter (SNOMED 184047000 patient registration).",
+      "resourceType": "Encounter",
+      "id": "{{eventId}}",
+      "status": "finished",
+      "class": {
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+        "code": "AMB",
+        "display": "ambulatory"
+      },
+      "type": [
+        {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "184047000",
+              "display": "Patient registration"
+            }
+          ]
+        }
+      ],
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "period": { "start": "{{time}}", "end": "{{endTime}}" },
+      "serviceProvider": { "reference": "Organization/{{facilityId}}" }
+    },
+    "vitals-recording": {
+      "$comment": "Vital signs observation (values removed by the adaptor's redactor).",
+      "resourceType": "Observation",
+      "id": "{{eventId}}",
+      "status": "final",
+      "category": [
+        {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+              "code": "vital-signs",
+              "display": "Vital Signs"
+            }
+          ]
+        }
+      ],
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "effectiveDateTime": "{{time}}"
+    },
+    "consultation-encounter": {
+      "$comment": "Ambulatory consultation encounter (SNOMED 11429006 consultation).",
+      "resourceType": "Encounter",
+      "id": "{{eventId}}",
+      "status": "finished",
+      "class": {
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+        "code": "AMB",
+        "display": "ambulatory"
+      },
+      "type": [
+        {
+          "coding": [
+            { "system": "http://snomed.info/sct", "code": "11429006", "display": "Consultation" }
+          ]
+        }
+      ],
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "period": { "start": "{{time}}", "end": "{{endTime}}" },
+      "serviceProvider": { "reference": "Organization/{{facilityId}}" }
+    },
+    "lab-order-request": {
+      "$comment": "Laboratory order (SNOMED 108252007 laboratory procedure).",
+      "resourceType": "ServiceRequest",
+      "id": "{{eventId}}",
+      "status": "active",
+      "intent": "order",
+      "category": [
+        {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "108252007",
+              "display": "Laboratory procedure"
+            }
+          ]
+        }
+      ],
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "authoredOn": "{{time}}",
+      "performer": [{ "reference": "Organization/{{facilityId}}" }]
+    },
+    "lab-results": {
+      "$comment": "Final laboratory result (values removed by the adaptor's redactor).",
+      "resourceType": "Observation",
+      "id": "{{eventId}}",
+      "status": "final",
+      "category": [
+        {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+              "code": "laboratory",
+              "display": "Laboratory"
+            }
+          ]
+        }
+      ],
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "effectiveDateTime": "{{time}}"
+    },
+    "diagnosis": {
+      "$comment": "Diagnosis (any Condition matches; the diagnosis code is removed by the adaptor's redactor).",
+      "resourceType": "Condition",
+      "id": "{{eventId}}",
+      "clinicalStatus": {
+        "coding": [
+          { "system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active" }
+        ]
+      },
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "recordedDate": "{{time}}"
+    },
+    "medication-request": {
+      "$comment": "Outpatient prescription (medication removed by the adaptor's redactor).",
+      "resourceType": "MedicationRequest",
+      "id": "{{eventId}}",
+      "status": "active",
+      "intent": "order",
+      "category": [
+        {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/medicationrequest-category",
+              "code": "outpatient",
+              "display": "Outpatient"
+            }
+          ]
+        }
+      ],
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "authoredOn": "{{time}}"
+    },
+    "medication-dispense": {
+      "$comment": "Medication handed over (status completed).",
+      "resourceType": "MedicationDispense",
+      "id": "{{eventId}}",
+      "status": "completed",
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "whenHandedOver": "{{time}}"
+    },
+    "procedure-order-request": {
+      "$comment": "Procedure order (SNOMED 387713003 surgical procedure).",
+      "resourceType": "ServiceRequest",
+      "id": "{{eventId}}",
+      "status": "active",
+      "intent": "order",
+      "category": [
+        {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "387713003",
+              "display": "Surgical procedure"
+            }
+          ]
+        }
+      ],
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "authoredOn": "{{time}}",
+      "performer": [{ "reference": "Organization/{{facilityId}}" }]
+    },
+    "procedure": {
+      "$comment": "Procedure performed (status completed).",
+      "resourceType": "Procedure",
+      "id": "{{eventId}}",
+      "status": "completed",
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "performedDateTime": "{{time}}"
+    },
+    "patient-summary": {
+      "$comment": "Patient summary document (LOINC 60591-5).",
+      "resourceType": "Composition",
+      "id": "{{eventId}}",
+      "status": "final",
+      "type": {
+        "coding": [
+          { "system": "http://loinc.org", "code": "60591-5", "display": "Patient summary Document" }
+        ]
+      },
+      "subject": { "reference": "Patient/{{patientId}}" },
+      "date": "{{time}}",
+      "custodian": { "reference": "Organization/{{facilityId}}" }
+    },
+    "visit-closure": {
+      "$comment": "The OPD episode of care closed (status finished).",
+      "resourceType": "EpisodeOfCare",
+      "id": "{{eventId}}",
+      "status": "finished",
+      "type": [
+        {
+          "coding": [
+            {
+              "system": "https://nshr-uat.sha.go.ke/fhir/CodeSystem/ke-episode-of-care-type-cs",
+              "code": "general-opd",
+              "display": "General Outpatient"
+            }
+          ]
+        }
+      ],
+      "patient": { "reference": "Patient/{{patientId}}" },
+      "period": { "start": "{{time}}", "end": "{{endTime}}" },
+      "managingOrganization": { "reference": "Organization/{{facilityId}}" }
+    }
+  },
+  "journeys": [
+    ["consent-request"],
+    ["consent-request", "consent-verification", "visit-encounter", "patient-check-in"],
+    [
+      "consent-request",
+      "consent-verification",
+      "visit-encounter",
+      "patient-check-in",
+      "vitals-recording",
+      "consultation-encounter",
+      "diagnosis",
+      "patient-summary",
+      "visit-closure"
+    ],
+    [
+      "consent-request",
+      "consent-verification",
+      "visit-encounter",
+      "patient-check-in",
+      "vitals-recording",
+      "consultation-encounter",
+      "lab-order-request",
+      "lab-results",
+      "diagnosis",
+      "medication-request",
+      "medication-dispense",
+      "patient-summary",
+      "visit-closure"
+    ],
+    [
+      "consent-request",
+      "consent-verification",
+      "visit-encounter",
+      "patient-check-in",
+      "vitals-recording",
+      "consultation-encounter",
+      "diagnosis",
+      "procedure-order-request",
+      "procedure",
+      "patient-summary",
+      "visit-closure"
+    ]
+  ]
+}

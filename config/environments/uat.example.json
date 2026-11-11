@@ -1,0 +1,73 @@
+{
+  "$comment": "What: template for the shared UAT environment (CCE services reached directly, never through the gateway, which rate-limits /v1/events). How: copy to uat.json, replace every REPLACE-ME host, then run e.g. scripts/check-services.sh uat; uat.json may be committed when it holds no secrets, personal overrides go in uat.local.json (git-ignored). Needs: network access from the k6 host to every service, Kafka and Postgres; DB_PASSWORD exported; team agreement before enabling allowTempIndex or allowPlanDefinitionChanges. services.stepSla.pollIntervalSeconds must match the Step SLA poll interval actually deployed (CCE_SLA_POLL_INTERVAL_MS / 1000): 15 here because deploy-scripts start the service with the prod profile (application-prod.yml, 15000 ms); use 5 only if it runs the default profile (application.yml, 5000 ms). Preflight step-sla-scheduler waits pollIntervalSeconds + 2 s for a scheduler cycle and STEP_SLA_MAX_WAIT=auto is 2 x this value, so too small a value reports a healthy scheduler as stopped. Outputs: read by tools/core/environment.mjs.",
+  "name": "uat",
+  "kind": "uat",
+  "description": "UAT environment: copy to uat.json and fill the hosts (k6 on its own host, not a laptop)",
+  "services": {
+    "collector": {
+      "baseUrl": "http://REPLACE-ME:8080",
+      "healthPath": "/actuator/health",
+      "metricsPath": "/actuator/prometheus",
+      "prometheusJob": "cce-collector-service"
+    },
+    "matcher": {
+      "baseUrl": "http://REPLACE-ME:8080",
+      "healthPath": "/actuator/health",
+      "metricsPath": "/actuator/prometheus",
+      "prometheusJob": "cce-matcher-service"
+    },
+    "stepSla": {
+      "baseUrl": "http://REPLACE-ME:8080",
+      "healthPath": "/actuator/health",
+      "metricsPath": "/actuator/prometheus",
+      "prometheusJob": "cce-step-sla-service",
+      "pollIntervalSeconds": 15
+    },
+    "protocol": {
+      "baseUrl": "http://REPLACE-ME:8080",
+      "healthPath": "/actuator/health",
+      "apiPath": "/v1/protocol/protocol-definitions",
+      "refreshIntervalSeconds": 60
+    }
+  },
+  "kafka": {
+    "brokers": ["REPLACE-ME:9092"],
+    "inboundTopic": "cce.events.inbound",
+    "deadLetterTopic": "cce.events.inbound.dlq",
+    "matcherConsumerGroup": "cce-matcher-service",
+    "expectedPartitions": 25
+  },
+  "database": {
+    "host": "REPLACE-ME",
+    "port": 5432,
+    "name": "ccedb",
+    "user": "REPLACE-ME",
+    "passwordEnvVar": "DB_PASSWORD",
+    "expectedTables": [
+      "inbound_event_log",
+      "matcher_event_log",
+      "protocol_instance",
+      "step_instance",
+      "step_sla_state_transition"
+    ],
+    "replicationSlots": ["cce_analytics_slot"]
+  },
+  "k6": {
+    "image": "cce-load-tests/k6:2.3.0-kafka2.2.0",
+    "dockerNetwork": "host"
+  },
+  "monitoring": {
+    "enabled": false,
+    "prometheusUrl": "http://REPLACE-ME:9090",
+    "remoteWriteUrl": "http://REPLACE-ME:9090/api/v1/write",
+    "grafanaUrl": "http://REPLACE-ME:3000",
+    "grafanaUser": "admin"
+  },
+  "safety": {
+    "allowCleanup": true,
+    "allowTempIndex": false,
+    "allowPlanDefinitionChanges": false,
+    "minFreeDiskGb": 20
+  },
+  "settings": {}
+}

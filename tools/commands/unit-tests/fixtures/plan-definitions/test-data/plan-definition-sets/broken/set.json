@@ -1,0 +1,13 @@
+{
+  "$comment": "What: a plan-definition set whose plan definition breaks a protocol-service rule (tolerance-days on a could step). How: plan-definitions.spec.mjs expects validate to exit 1. Needs: ../../plan-definitions/broken.json. Outputs: nothing.",
+  "name": "broken",
+  "description": "invalid on purpose",
+  "planDefinitions": [
+    {
+      "file": "plan-definitions/broken.json"
+    }
+  ],
+  "compatibleDatasets": ["ebuzima-emr"],
+  "exclusive": false,
+  "requiresActionDefinitions": []
+}

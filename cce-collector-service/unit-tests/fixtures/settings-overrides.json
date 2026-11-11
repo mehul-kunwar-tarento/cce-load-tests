@@ -1,0 +1,20 @@
+{
+  "$comment": "What: the small settings the synthetic k6 summaries of this folder were generated with (common + per test type), so the fixtures stay short (6 report windows, 3 staircase levels). How: unit tests resolve these with resolveSettings (through ../shared.mjs) and check the result equals each fixture's context.phasePlan; a change in lib/ or defaults.json that alters the plan then shows up as a failing test instead of silently stale fixtures. Needs: config/settings/defaults.json names. Outputs: --set style overrides (strings as on the command line).",
+  "common": {
+    "RUN_ID": "fixture01",
+    "REPORT_WINDOW": "10s",
+    "EVENT_SOURCE": "loadtest-emr"
+  },
+  "load": {
+    "WARM_UP_RATE": "2",
+    "WARM_UP_DURATION": "10s",
+    "LOAD_RATE": "10",
+    "LOAD_DURATION": "60s"
+  },
+  "breakpoint": {
+    "WARM_UP_RATE": "5",
+    "WARM_UP_DURATION": "10s",
+    "LEVELS": "20,40,80",
+    "LEVEL_DURATION": "10s"
+  }
+}

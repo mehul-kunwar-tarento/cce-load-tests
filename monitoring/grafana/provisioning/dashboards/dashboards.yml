@@ -1,0 +1,28 @@
+# dashboards.yml — loads the performance dashboards into the laptop Grafana
+#
+# What:    A "file" dashboard provider: Grafana reads every *.json file in /var/lib/grafana/dashboards
+#          (monitoring/grafana/dashboards/ mounted read-only) and shows them in the folder
+#          "CCE Performance". Non-JSON files there (the README) are ignored by Grafana.
+# How:     Read by Grafana at start-up from /etc/grafana/provisioning/dashboards. Edited dashboard JSON is
+#          picked up within updateIntervalSeconds, no restart needed.
+# Needs:   monitoring/grafana/dashboards/*.json mounted by monitoring/docker-compose.yml.
+# Outputs: Five dashboards in Dashboards → CCE Performance (uids cce-perf-overview, cce-perf-collector,
+#          cce-perf-matcher, cce-perf-step-sla, cce-perf-k6).
+
+apiVersion: 1
+
+providers:
+  - name: cce-performance
+    orgId: 1
+    folder: 'CCE Performance'
+    type: file
+    # The JSON files in the repository are the source of truth: a dashboard deleted in the UI comes back.
+    disableDeletion: true
+    # UI edits are allowed for experimenting, but are NOT saved to the repository. To keep a change,
+    # export the dashboard (Share → Export → Save to file, "Export for sharing externally" OFF) and
+    # replace the JSON file (see monitoring/grafana/dashboards/README.md).
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

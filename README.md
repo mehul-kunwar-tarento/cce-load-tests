@@ -1,95 +1,152 @@
-# CCE load tests
+<!--
+  What:    Landing page of the CCE performance tests: what the suite is, the facts at a glance, the first
+           commands to run, where every document is, how one test run works, and how the suite itself is tested.
+  How:     Read first. Commands run from this folder (the repository root). New to performance testing?
+           Continue with docs/runbook.md and keep docs/glossary.md open.
+  Needs:   Nothing to read it. To run tests: Node.js 22, Docker, a running CCE stack (see docs/runbook.md).
+  Outputs: Documentation only.
+-->
 
-k6 load tests for the CCE services. Each service is tested on its own; an end-to-end test comes last.
+# CCE Performance Tests
 
-## How to run
+Performance tests for the **CCE (Clinical Compliance Engine)** services. Each service is tested **on its
+own**, fed directly at its own entry point: the **collector** over HTTP, the **matcher** through Kafka, and
+**Step SLA** with alarms seeded in Postgres. After every run you get a short report that answers: how much
+load went through in the configured interval, what we expected the service to withstand and whether it did,
+and — for stress and breakpoint tests — when it started breaking and what broke. Every run is visible in
+Grafana next to the services' own metrics.
 
-Only Docker is needed: `run.sh` runs k6 from our own image (`k6-kafka-image/Dockerfile`: k6 2.3.0 plus the
-xk6-kafka 2.2.0 extension, which the matcher test uses to write to Kafka). The first run on a machine
-builds it (about a minute, needs internet); later runs reuse it.
+The suite is general, not tied to one EMR or one protocol: which protocol is ACTIVE is a test parameter
+(`PLAN_DEFINITION_SET`: `emr-service`, the default, or `kenya-sha-emr-service`) recorded with every result,
+and the event data comes from that protocol's dataset (`ebuzima-emr` for the eBUZIMA EMR, `tiberbu-emr` for
+tibERbu; selectable with `DATASET`).
+
+> **Never point it at production.** Every command refuses an environment named or marked `prod`. On shared
+> Dev/UAT, read the write-safety rules in [docs/runbook.md](docs/runbook.md) §6 before loading plan
+> definitions or cleaning up.
+
+**Load generator** k6 2.3.0 + xk6-kafka 2.2.0 (Docker image `cce-load-tests/k6:2.3.0-kafka2.2.0`) ·
+**Tooling** Node.js 22, one CLI (`node tools/cli.mjs`) · **Services** cce-collector-service,
+cce-matcher-service, cce-step-sla-service (`release-2.0.0`) · **Test types** smoke, load, stress, breakpoint ·
+**Results** `results/<subject>-<test-type>-<yyyymmdd-hhmmss>/` (`result.json` + `report.md`) ·
+**Monitoring** Prometheus + Grafana (laptop stack or CCE's Grafana)
+
+## Quick Start
+
+On a laptop running CCE's `openphc-repos/local-stack`:
 
 ```bash
-./run.sh <env> <test>                    # e.g. ./run.sh local matcher/matcher.js  (smoke, then load)
-./run.sh <env> <test> -e PROFILE=smoke   # smoke only (30 s)
-./run.sh <env> <test> -e PROFILE=stress  # smoke, then a staircase of rising rates (breaking point)
-./run.sh <env> <test> -e PROFILE=flood   # smoke, then a flood far above the limit (exact maximum)
+scripts/build-k6-image.sh                      # once per machine: the k6 image with Kafka support
+npm install                                    # once: Node dependencies (pg, kafkajs, linters)
+export DB_PASSWORD=…                           # the cce_user password; never written to a file
+
+scripts/check-services.sh local                # preflight: services healthy, Postgres/Kafka reachable, disk, WAL
+scripts/run-test.sh local collector smoke --dry-run   # what would run: settings, phases, k6 command (connects to nothing)
+scripts/run-test.sh local collector smoke      # 1 event/s for 30 s; the report is printed at the end
+scripts/cleanup-test-data.sh local --run-id <runId> --dry-run   # count this run's test data, delete nothing
+scripts/cleanup-test-data.sh local --run-id <runId>             # delete it, verified table by table
 ```
 
-The rates come from the expected traffic: 600,000 events a day, about 7/s on average and 50/s in
-10-minute peaks (cce-data-pipeline docs §7.1).
+Then the other services and test types (`<subject>` is `collector`, `matcher` or `step-sla`):
 
-| Profile | Rate | Duration | Passing means |
-|---|---|---|---|
-| smoke | 1/s | 30 s | the script and setup work; if it fails, k6 stops at once |
-| load (default) | 50/s, the expected peak | 10 min | the service handles a normal busy period |
-| stress | rising steps: 100 → 150 → … → 400/s | 1 min per step | where it breaks: "kept up at X, broke at Y events/s" |
-| flood | 2,000/s | 1 min | its exact maximum: "broke above Z events/s" |
+```bash
+scripts/run-test.sh local <subject> load       # 1 × peak: 50/s for 10 min
+scripts/run-test.sh local <subject> stress     # 4 × peak: 200/s for 10 min
+scripts/run-test.sh local <subject> breakpoint # collector staircase · matcher flood (2,000/s for 1 min) · Step SLA storm
+```
 
-All profiles share the same basic pass/fail rules (`lib/load.js`); stress and flood report a breaking
-point instead of failing on a growing backlog. They leave a lot of data; wait for the matcher's Kafka lag
-to reach 0 before running `scripts/cleanup-test-data.sh`.
+For collector and matcher, **every** load, stress and breakpoint run first sends a warm-up of 10/s for 1 min
+(600 events, not measured), so a stress run sends 120,600 events in 11 min and the matcher flood 120,600
+events in 2 min (`WARM_UP_RATE`, `WARM_UP_DURATION`). Step SLA has no warm-up (its alarms are seeded).
+`--dry-run` prints the exact phase plan.
 
-| Test | What it tests |
+Every number is a setting you can change for one run without editing code, e.g.
+`--set LOAD_RATE=80 --set LOAD_DURATION=5m`, `--set LOAD_EVENTS=1000` (total events instead of a duration) or
+`--set PLAN_DEFINITION_SET=kenya-sha-emr-service`. See them with `scripts/print-settings.sh local collector load`.
+The full walk-through, including monitoring and troubleshooting, is the [runbook](docs/runbook.md).
+
+## Documentation
+
+| Document | Contents |
 |---|---|
-| `matcher/matcher.js` | Matcher: writes the CloudEvent straight to Kafka; a watcher reads `cce_events_processed_total` every 5 s for backlog and throughput. Stops if nothing is processed for 30 s. The counter counts all traffic, so on a shared server other events make the matcher look faster |
+| [Runbook](docs/runbook.md) | Onboarding: prerequisites, image, monitoring, environments, plan-definition sets, preflight, running every test, reading results and Grafana, baselines, cleanup, troubleshooting |
+| [Architecture Overview](docs/architecture-overview.md) | What CCE is, the write and analytics paths, each service and how it is fed on its own, how one run works (k6 clock), feasibility and gaps |
+| [Test Strategy](docs/test-strategy.md) | Test types and when to use each, open load model, threshold vs capacity vs breaking point vs baseline, warm-up, dropped iterations and the k6 limit, environments, repeat runs |
+| [Workload Model](docs/workload-model.md) | How events per interval are set (rate + duration or total events), staircase, flood, storm, every setting and its default, from UAT/Dev traffic to a workload profile |
+| [Glossary](docs/glossary.md) | Every term you will meet, in plain language |
+| [Conventions](docs/conventions.md) | Naming, ids, header comments, specs, git; adding a test type, service, adaptor or the end-to-end module |
+| [Known Results and Lessons](docs/known-results-and-lessons.md) | The first (laptop, relative only) numbers and the lessons, each linked to the part of the suite that addresses it |
+| [Requirements Checklist](docs/requirements-checklist.md) | The team lead's review points R1–R15 → files, commands, status |
+| [Open Questions](docs/open-questions.md) | Decisions still needed from the team, package deviations, tasks deferred to the first live run |
+| [Contributing](CONTRIBUTING.md) | Spec-first workflow, commits and branches, checks to run |
+| [Specs](specs/README.md) | Index of every spec (shared parts and per service) with status |
 
-| `step-sla/step-sla.js` | Step SLA: the work is seeded straight into the database (see below); this only watches it being handled |
+Per-service and per-part guides:
 
-**Step SLA** reads only the database, so its test seeds deadline alarms there instead of sending events:
-
-```bash
-DB_PASSWORD=<password> ./scripts/step-sla-seed.sh <env> <smoke|load|stress|storm>   # alarms ring from 60 s later
-./run.sh <env> step-sla/step-sla.js                                     # watch them being handled
-DB_PASSWORD=<password> ./scripts/step-sla-report.sh <env>                            # PASS/FAIL from each alarm's wait
-```
-
-`scripts/step-sla-seed.sh` copies the rows the matcher writes for an Encounter (enrolment, deadline step, its DUE
-and MISSED alarms). The ring times set the load: smoke 30 at 1/s, load 30,000 at 50/s, stress 120,000
-at 200/s, storm 100,000 all at once. `scripts/step-sla-report.sh` passes when every alarm was handled and the
-longest wait after ringing is under 2 check intervals (`stepSla.pollIntervalSeconds`; storm: 300 s).
-Run it before `scripts/cleanup-test-data.sh`, and run `scripts/cleanup-test-data.sh` only once Step SLA has nothing due, or the two collide.
-
-The smoke, load and stress settings and their pass/fail rules live in `lib/` (`smoke.js`, `load.js`,
-`stress.js`), and `lib/options.js` picks one by `PROFILE`, so every test uses the same rules.
-
-At the end k6 prints a summary; each threshold shows ✓ or ✗, and the run exits non-zero if any fails.
-
-## Environments
-
-Each environment has one file in `env/` with the URLs and IDs the tests use. The scripts contain
-no URLs. The repo is cloned onto each environment's own server and run there, so the tests call the
-services directly, not through the gateway (the gateway rate-limits `/v1/events`).
-
-| File | Environment |
+| For | See |
 |---|---|
-| `env/local.json` | The local stack (`extras/cce-local-setup`) |
+| Collector tests (HTTP) | [cce-collector-service/README.md](cce-collector-service/README.md) · [test plan](cce-collector-service/docs/test-plan.md) · [test strategy](cce-collector-service/docs/test-strategy.md) |
+| Matcher tests (Kafka) | [cce-matcher-service/README.md](cce-matcher-service/README.md) · [test plan](cce-matcher-service/docs/test-plan.md) · [test strategy](cce-matcher-service/docs/test-strategy.md) |
+| Step SLA tests (seeded alarms) | [cce-step-sla-service/README.md](cce-step-sla-service/README.md) · [test plan](cce-step-sla-service/docs/test-plan.md) · [test strategy](cce-step-sla-service/docs/test-strategy.md) |
+| The CLI, result files, service-module contract | [tools/README.md](tools/README.md) |
+| Environments and settings | [config/README.md](config/README.md) · [config/settings/defaults.json](config/settings/defaults.json) |
+| Datasets and plan-definition sets | [test-data/README.md](test-data/README.md) |
+| Prometheus, Grafana, dashboards | [monitoring/README.md](monitoring/README.md) |
+| Baselines | [baselines/README.md](baselines/README.md) |
+| Shared k6 library, k6 image | [lib/README.md](lib/README.md) · [docker/k6/README.md](docker/k6/README.md) |
 
-Pick one with `-e ENV=<name>`. Passwords are never stored here; they come from environment variables.
+## How it works
 
-## Test data
+```
+ scripts/run-test.sh local matcher stress
+   └─ node tools/cli.mjs run local matcher stress
+        1  settings: defaults.json → environment file → env vars → --set   ─► run-context.json (printed)
+        2  preflight: health, Postgres, Kafka, plan-definition set, disk, WAL ─► preflight.json (fail = stop)
+        3  conditions: machine, commit, data volume, ACTIVE plan definitions
+        4  wait until the service is idle; prepare (Step SLA: seed alarms)    ─► seed.json
+        5  start the metrics sampler and the watchers                         ─► service-metrics.json, watch-*.json
+        6  k6 in Docker sends the load ──────────────────────────────────────► CCE service under test
+              └─ k6 metrics ─► Prometheus (remote write, tag testid=<runId>) ─► Grafana
+        7  watchers wait for catch-up; data checks count rows in Postgres     ─► data-checks.json
+        8  result.json (the only source of truth)  ─►  report.md + printed summary
+        9  optional: compare with a baseline                                  ─► baseline-comparison.json
 
-Every patient ID a test creates starts with `LOADTEST-`, so load-test data can be found and deleted
-in shared environments. To delete it (the script shows the row counts and asks before deleting):
-
-```bash
-DB_PASSWORD=<password> ./scripts/cleanup-test-data.sh <env>
+   collector ◄── HTTP POST /v1/events (k6)
+   matcher   ◄── Kafka cce.events.inbound (k6 + xk6-kafka)
+   Step SLA  ◄── alarms seeded in Postgres (Node, no k6)
 ```
 
-It deletes every Postgres row linked to a `LOADTEST-` patient, in one transaction. ClickHouse's main
-tables follow on their own (Debezium carries the deletes); its summary tables do not, see Open items.
-Locally, `extras/cce-local-setup/scripts/reset-data.sh` clears everything instead.
+Every run is tagged with a run id (`yyyymmdd-hhmmss`): the results folder, the Grafana `testid` and every
+row of test data (`LOADTEST-<runId>-…`) carry it, so a run can be found, compared and cleaned up exactly.
+Details: [Architecture Overview](docs/architecture-overview.md) §4–§5.
 
-## Open items
+## Testing
 
-- **Prod:** not decided yet whether load tests ever run against Prod. Needs a discussion first.
-  Until then, do not run these tests on Prod. `scripts/cleanup-test-data.sh` refuses `prod`.
-- **ClickHouse summary tables:** after `scripts/cleanup-test-data.sh`, the `mv_*` and `rollup_*` tables in
-  `cce_analytics` still hold rows for `LOADTEST-` patients. Not yet checked whether the Insights
-  dashboards show them.
-- **Missing index in the matcher:** `step_instance.matched_event_id` has a foreign key to
-  `matcher_event_log` but no index, so deleting matcher events scans all of `step_instance` per row.
-  `scripts/cleanup-test-data.sh` works around it with an index that exists only during its transaction (writes to
-  `step_instance` wait meanwhile). The real fix is a migration in `cce-matcher-service`; raise with the team.
-- **Grafana/Prometheus (later):** send k6's own metrics to Prometheus (`-o experimental-prometheus-rw`)
-  and add the k6 dashboard to Grafana. Needs `--web.enable-remote-write-receiver` on Prometheus in
-  `deploy-scripts`. Until then, watch the service's existing Grafana dashboard during a run.
+The suite is checked without touching any live system:
+
+```bash
+npm test             # every unit test (node --test, fakes for Docker, Postgres, Kafka and HTTP)
+npm run lint         # ESLint + Prettier + header comments (lint-headers) + ShellCheck
+npm run check:k6     # k6 inspect of every k6 test script, in the image, with --network none
+scripts/run-test.sh local matcher stress --dry-run   # settings and phase plan of a run, no connection
+```
+
+Exit codes of every command: `0` passed / done · `1` failed (or aborted) · `2` refused (prod, preflight
+failed, guard, bad setting) · `3` tool error.
+
+## Repository layout
+
+| Path | What it is |
+|---|---|
+| `cce-collector-service/`, `cce-matcher-service/`, `cce-step-sla-service/` | One folder per service, named after its repository: tests, test plan and strategy, specs, data checks; self-contained so it can later be copied into that repository as `performance-tests/` |
+| `lib/` | Shared k6 library (phase plan, scenarios, thresholds, test-data builders) |
+| `tools/` | Node.js CLI: run, settings, preflight, cleanup, report, baseline, check-data, plan-definitions, lint-headers |
+| `scripts/` | Thin shell entry points (`run-test.sh`, `check-services.sh`, `cleanup-test-data.sh`, …) |
+| `config/` | Environment files (no secrets) and `settings/defaults.json`, the one source of every setting |
+| `test-data/` | Datasets, plan-definition fixtures, plan-definition sets |
+| `monitoring/` | Laptop Prometheus + Grafana and the dashboards for CCE's Grafana |
+| `baselines/` | Saved baselines (written by the tool) |
+| `docs/` | The documents listed above |
+| `specs/` | Specs of the shared parts and the index of all specs |
+| `docker/k6/` | Dockerfile of the k6 image |
+| `results/` | Run outputs, git-ignored |

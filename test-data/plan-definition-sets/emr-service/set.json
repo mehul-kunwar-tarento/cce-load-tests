@@ -1,0 +1,9 @@
+{
+  "$comment": "What: plan-definition set 'emr-service': the EMR Service protocol of the ebuzima-emr dataset (emr-service-protocol 1.0.0) is the only plan definition ACTIVE, so every event of the ebuzima-emr dataset enrols the patient in 1 plan definition (3 mandatory steps with a deadline: vitals-recording, consultation, diagnosis). The default (PLAN_DEFINITION_SET=emr-service). How: selected with the setting PLAN_DEFINITION_SET; tools/plan-definitions (sets.mjs) loads it, validates it offline and loads/retires its plan definition on request; with DATASET empty the run uses this set's first compatible dataset; the set name and its plan definition are saved in every result's conditions. Needs: the files listed under planDefinitions (paths relative to test-data/). Outputs: the list of plan definitions that make up this test condition.",
+  "name": "emr-service",
+  "description": "EMR Service protocol for the ebuzima-emr dataset (1 plan definition, enrols on VISIT_ENCOUNTER, 3 mandatory steps with a deadline)",
+  "planDefinitions": [{ "file": "plan-definitions/emr-service-protocol.json" }],
+  "compatibleDatasets": ["ebuzima-emr"],
+  "exclusive": false,
+  "requiresActionDefinitions": []
+}

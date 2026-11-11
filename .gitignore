@@ -1,2 +1,21 @@
-step-sla/last-seed.json
-results/
+# What:    Files git must not track in this repository.
+# How:     Read automatically by git; also used by `node tools/cli.mjs lint-headers` (read-only
+#          `git ls-files --others --ignored --exclude-standard`) to skip these files.
+# Needs:   Nothing.
+# Outputs: Run outputs, installed packages, runtime scratch and personal/secret files stay out of git.
+
+# Run outputs (one folder per run; old v1 folders are evidence and stay untouched).
+# Anchored with a leading "/" so it matches ONLY the root results/ folder: an unanchored `results/`
+# would also hide tools/results/ (the JSON Schemas) and tools/report/unit-tests/fixtures/results/.
+/results/
+# A local copy of the first version (v1) and its archive spec, not shipped: the first version is on its
+# own branch (docs/open-questions.md §2.6). Ignored so it can never be committed by accident.
+/archive/
+# Installed npm packages (npm install recreates them from package-lock.json)
+node_modules/
+# Runtime scratch of the tools (.cache/inspect/, .cache/plan-definitions/, …)
+.cache/
+# Personal environment overrides, deep-merged over config/environments/<env>.json
+config/environments/*.local.json
+# Monitoring secrets (copy of monitoring/.env.example with real values)
+monitoring/.env

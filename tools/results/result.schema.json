@@ -1,0 +1,958 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openphc.org/cce-performance-tests/result.schema.json",
+  "$comment": "What: JSON Schema (documentation) of result.json schemaVersion 1.0.0, the one file every report, series summary and baseline is built from (plan §5.2). Rules: every field is present (null when it does not apply, never omitted); numbers are raw; times are ISO-8601 with offset. How: editor help and documentation; the tools validate with the hand-written tools/core/result-schema.mjs validateResult (same rules, clearer messages, no extra dependency). Needs: nothing. Outputs: nothing.",
+  "title": "CCE performance test result",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "runId",
+    "service",
+    "subject",
+    "testType",
+    "status",
+    "statusReason",
+    "startedAt",
+    "endedAt",
+    "durationSeconds",
+    "timing",
+    "phases",
+    "expectation",
+    "load",
+    "latency",
+    "thresholds",
+    "breaking",
+    "levels",
+    "timeSeries",
+    "serviceMetrics",
+    "dataChecks",
+    "conditions",
+    "baselineComparison",
+    "artifacts",
+    "warnings",
+    "notes"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "kind": {
+      "const": "cce-performance-result"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^(\\d{8}-\\d{6}|[A-Za-z0-9]{1,20})$"
+    },
+    "service": {
+      "type": "string",
+      "description": "Service repository name, e.g. cce-matcher-service"
+    },
+    "subject": {
+      "type": "string",
+      "description": "collector | matcher | step-sla (or a later module)"
+    },
+    "testType": {
+      "enum": [
+        "smoke",
+        "load",
+        "stress",
+        "breakpoint",
+        "soak",
+        "spike"
+      ]
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "aborted",
+        "error"
+      ],
+      "description": "passed = every required rule and required data check passed; failed = a rule failed; aborted = stopped by an abort rule, stall or Ctrl-C (partial data); error = the tool could not run the test"
+    },
+    "statusReason": {
+      "type": "string"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "endedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "durationSeconds": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "timing": {
+      "type": "object",
+      "required": [
+        "source",
+        "k6StartedAt",
+        "measureStart",
+        "sendEnd",
+        "sendEndedEarly"
+      ],
+      "properties": {
+        "source": {
+          "enum": [
+            "k6-setup",
+            "k6-rest-api",
+            "seed",
+            "estimated"
+          ],
+          "description": "Where the start of measuring came from (k6 clock contract, plan §4.7)"
+        },
+        "k6StartedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "measureStart": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "sendEnd": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "sendEndedEarly": {
+          "type": "boolean"
+        }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "startedAt",
+          "endedAt"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "rate": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "plannedEvents": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "expectation": {
+      "type": "object",
+      "required": [
+        "summary",
+        "targetRate",
+        "peakRate",
+        "multipleOfPeak",
+        "toBeConfirmed"
+      ],
+      "properties": {
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetRate": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "peakRate": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "multipleOfPeak": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "unit": {
+          "enum": [
+            "events",
+            "alarms"
+          ]
+        },
+        "toBeConfirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "load": {
+      "type": "object",
+      "required": [
+        "unit",
+        "plannedEvents",
+        "eventsSent",
+        "eventsAccepted",
+        "eventsFailed",
+        "eventsDropped",
+        "droppedRate",
+        "droppedAllowed",
+        "eventsProcessed",
+        "measuredSeconds",
+        "averageRate",
+        "targetRate"
+      ],
+      "properties": {
+        "unit": {
+          "enum": [
+            "events",
+            "alarms"
+          ]
+        },
+        "plannedEvents": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "eventsSent": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "eventsAccepted": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "eventsFailed": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "eventsDropped": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "droppedRate": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "droppedAllowed": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "eventsProcessed": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "measuredEventsSent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Measured phase only (warm-up excluded); what k6 sent, shown next to eventsThrough"
+        },
+        "measuredEventsAccepted": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "eventsThrough": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "What went through the SERVICE (R1): HTTP = measuredEventsAccepted (2xx); Kafka = processed by the service from the measured start until caught up / catch-up end (warm-up taken off, at most measuredEventsSent); seeded = alarms handled; 'sent' basis when the service's count is not available"
+        },
+        "throughBasis": {
+          "enum": [
+            "accepted",
+            "processed",
+            "handled",
+            "sent",
+            null
+          ],
+          "description": "Which count eventsThrough is"
+        },
+        "throughSeconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Seconds eventsThrough was counted over: measured interval (HTTP, sent), plus the catch-up (Kafka, seeded)"
+        },
+        "measuredSeconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "averageRate": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "eventsThrough ÷ throughSeconds: what the service took per second, not what k6 sent"
+        },
+        "targetRate": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "latency": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "unit": {
+          "const": "ms"
+        },
+        "source": {
+          "type": "string"
+        },
+        "avg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "med": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p90": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p95": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p99": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "thresholds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "metric",
+          "rule",
+          "limit",
+          "actual",
+          "unit",
+          "passed",
+          "toBeConfirmed",
+          "source",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique: k6.<metric>[.<tag>], <subject>.<rule>, breakpoint.held-up-to"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "rule": {
+            "type": "string"
+          },
+          "limit": {},
+          "actual": {},
+          "unit": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "toBeConfirmed": {
+            "type": "boolean"
+          },
+          "source": {
+            "enum": [
+              "k6",
+              "watcher",
+              "module",
+              "data-check"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "informational": {
+            "type": "boolean",
+            "description": "Reported but never fails the run (e.g. staircase per-level search rules, drain-rate targets)"
+          }
+        }
+      }
+    },
+    "breaking": {
+      "type": "object",
+      "required": [
+        "broke",
+        "startedBreakingAt",
+        "secondsIntoMeasure",
+        "rateAtBreak",
+        "whatBroke",
+        "heldUpTo",
+        "brokeAtRate",
+        "k6Limited",
+        "caughtUp",
+        "catchUpSeconds",
+        "remainingBacklog",
+        "gaveUpAfterSeconds",
+        "drainRate"
+      ],
+      "properties": {
+        "broke": {
+          "type": "boolean"
+        },
+        "startedBreakingAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "secondsIntoMeasure": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "rateAtBreak": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "whatBroke": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "metric",
+              "description",
+              "source"
+            ],
+            "properties": {
+              "metric": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "actual": {},
+              "limit": {},
+              "source": {
+                "enum": [
+                  "k6",
+                  "watcher",
+                  "data-check",
+                  "service-metrics"
+                ],
+                "description": "service-metrics entries are diagnostics: they explain, never decide"
+              },
+              "firstAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "heldUpTo": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "brokeAtRate": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "k6Limited": {
+          "type": "boolean",
+          "description": "Only sending problems while the service answered fast: \"at least X/s (k6 limit)\" (D9)"
+        },
+        "caughtUp": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "catchUpSeconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "null whenever caughtUp is false (never a give-up time, D19)"
+        },
+        "remainingBacklog": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "gaveUpAfterSeconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "drainRate": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "levels": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "required": [
+          "rate",
+          "result"
+        ],
+        "properties": {
+          "rate": {
+            "type": "number"
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "plannedEvents": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "requests": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "p95Ms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "failedRate": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "checksRate": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "result": {
+            "enum": [
+              "held",
+              "broke",
+              "not-reached"
+            ]
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "timeSeries": {
+      "type": "object",
+      "required": [
+        "windowSeconds",
+        "points"
+      ],
+      "properties": {
+        "windowSeconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "t": {
+                "type": "number"
+              },
+              "at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "phase": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "level": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sent": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sentPerSecond": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "p95Ms": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "failedRate": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "backlog": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "processedPerSecond": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "broken": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "serviceMetrics": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "file": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "peaks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "number"
+                },
+                "firstAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "dataChecks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "expected",
+          "actual",
+          "comparison",
+          "passed",
+          "severity"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "expected": {},
+          "actual": {},
+          "comparison": {
+            "enum": [
+              "equals",
+              "at-least",
+              "at-most",
+              "between"
+            ]
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "severity": {
+            "enum": [
+              "required",
+              "info"
+            ]
+          },
+          "sql": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "conditions": {
+      "type": "object",
+      "required": [
+        "environment",
+        "host",
+        "suite",
+        "planDefinitionSet",
+        "dataset",
+        "dataVolume",
+        "settings",
+        "preflight",
+        "note"
+      ],
+      "properties": {
+        "environment": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "host": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "suite": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "planDefinitionSet": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "name, fanOut, planDefinitions[], otherActivePlanDefinitions[], effectiveFanOut, loadTestMarker, stepSlaSeedMode"
+        },
+        "dataset": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "dataVolume": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "value",
+              "source"
+            ],
+            "properties": {
+              "value": {},
+              "source": {
+                "enum": [
+                  "default",
+                  "environment",
+                  "env-var",
+                  "refine-from",
+                  "cli",
+                  "derived"
+                ]
+              }
+            }
+          }
+        },
+        "preflight": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "baselineComparison": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "refinedFrom": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Set by run --refine-from: {runId, heldUpTo, brokeAtRate}"
+    },
+    "artifacts": {
+      "type": "object",
+      "required": [
+        "k6ExitCode"
+      ],
+      "properties": {
+        "k6ExitCode": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "k6 exit code: 0, 99 thresholds failed, 108 aborted by script; the verdict comes from status, not from this code"
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

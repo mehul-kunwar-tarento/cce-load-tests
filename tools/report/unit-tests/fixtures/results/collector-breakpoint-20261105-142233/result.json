@@ -1,0 +1,1245 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "cce-performance-result",
+  "runId": "20261105-142233",
+  "service": "cce-collector-service",
+  "subject": "collector",
+  "testType": "breakpoint",
+  "status": "passed",
+  "statusReason": "Held up to 1,600/s, broke at 3,200/s; every rule and every required data check passed",
+  "startedAt": "2026-11-05T14:22:33.000+05:30",
+  "endedAt": "2026-11-05T14:28:20.000+05:30",
+  "durationSeconds": 347,
+  "timing": {
+    "source": "k6-setup",
+    "k6StartedAt": "2026-11-05T14:22:41.250+05:30",
+    "measureStart": "2026-11-05T14:23:41.250+05:30",
+    "sendEnd": "2026-11-05T14:28:07.000+05:30",
+    "sendEndedEarly": true
+  },
+  "phases": [
+    {
+      "name": "warm-up",
+      "startedAt": "2026-11-05T14:22:41.250+05:30",
+      "endedAt": "2026-11-05T14:23:41.250+05:30",
+      "rate": 10,
+      "plannedEvents": 600
+    },
+    {
+      "name": "measure",
+      "startedAt": "2026-11-05T14:23:41.250+05:30",
+      "endedAt": "2026-11-05T14:28:07.000+05:30",
+      "rate": 6400,
+      "plannedEvents": 756000
+    }
+  ],
+  "expectation": {
+    "summary": "Hold at least 200 events/s (4 × peak 50/s) on the staircase 200→6400/s.",
+    "targetRate": 200,
+    "peakRate": 50,
+    "multipleOfPeak": 4,
+    "unit": "events",
+    "toBeConfirmed": true
+  },
+  "load": {
+    "unit": "events",
+    "plannedEvents": 756600,
+    "eventsSent": 259990,
+    "eventsAccepted": 259634,
+    "eventsFailed": 356,
+    "eventsDropped": 640,
+    "droppedRate": 0.0008458895056833201,
+    "droppedAllowed": 756,
+    "eventsProcessed": null,
+    "measuredEventsSent": 259390,
+    "measuredEventsAccepted": 259034,
+    "measuredSeconds": 265.75,
+    "averageRate": 976.0677328316086,
+    "targetRate": 200
+  },
+  "latency": {
+    "unit": "ms",
+    "source": "k6 http_req_duration",
+    "avg": 288.09,
+    "med": 256.08,
+    "p90": 512.16,
+    "p95": 640.2,
+    "p99": 896.28,
+    "max": 1344.42
+  },
+  "thresholds": [
+    {
+      "id": "k6.http_req_duration.level:200",
+      "metric": "http_req_duration{level:200}",
+      "rule": "p(95) < 500",
+      "limit": 500,
+      "actual": 12.1,
+      "unit": "ms",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "95% of requests answered within 500 ms at level 200/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_failed.level:200",
+      "metric": "http_req_failed{level:200}",
+      "rule": "rate < 0.01",
+      "limit": 0.01,
+      "actual": 0,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "under 1% of requests failed (HTTP error or no answer) at level 200/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.checks.level:200",
+      "metric": "checks{level:200}",
+      "rule": "rate > 0.99",
+      "limit": 0.99,
+      "actual": 1,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "over 99% of the test's checks passed at level 200/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_duration.level:400",
+      "metric": "http_req_duration{level:400}",
+      "rule": "p(95) < 500",
+      "limit": 500,
+      "actual": 13,
+      "unit": "ms",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "95% of requests answered within 500 ms at level 400/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_failed.level:400",
+      "metric": "http_req_failed{level:400}",
+      "rule": "rate < 0.01",
+      "limit": 0.01,
+      "actual": 0,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "under 1% of requests failed (HTTP error or no answer) at level 400/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.checks.level:400",
+      "metric": "checks{level:400}",
+      "rule": "rate > 0.99",
+      "limit": 0.99,
+      "actual": 1,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "over 99% of the test's checks passed at level 400/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_duration.level:800",
+      "metric": "http_req_duration{level:800}",
+      "rule": "p(95) < 500",
+      "limit": 500,
+      "actual": 18.4,
+      "unit": "ms",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "95% of requests answered within 500 ms at level 800/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_failed.level:800",
+      "metric": "http_req_failed{level:800}",
+      "rule": "rate < 0.01",
+      "limit": 0.01,
+      "actual": 0,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "under 1% of requests failed (HTTP error or no answer) at level 800/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.checks.level:800",
+      "metric": "checks{level:800}",
+      "rule": "rate > 0.99",
+      "limit": 0.99,
+      "actual": 1,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "over 99% of the test's checks passed at level 800/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_duration.level:1600",
+      "metric": "http_req_duration{level:1600}",
+      "rule": "p(95) < 500",
+      "limit": 500,
+      "actual": 61.3,
+      "unit": "ms",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "95% of requests answered within 500 ms at level 1600/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_failed.level:1600",
+      "metric": "http_req_failed{level:1600}",
+      "rule": "rate < 0.01",
+      "limit": 0.01,
+      "actual": 0.000396,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "under 1% of requests failed (HTTP error or no answer) at level 1600/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.checks.level:1600",
+      "metric": "checks{level:1600}",
+      "rule": "rate > 0.99",
+      "limit": 0.99,
+      "actual": 0.999604,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "over 99% of the test's checks passed at level 1600/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_duration.level:3200",
+      "metric": "http_req_duration{level:3200}",
+      "rule": "p(95) < 500",
+      "limit": 500,
+      "actual": 812.5,
+      "unit": "ms",
+      "passed": false,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "95% of requests answered within 500 ms at level 3200/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_failed.level:3200",
+      "metric": "http_req_failed{level:3200}",
+      "rule": "rate < 0.01",
+      "limit": 0.01,
+      "actual": 0.004005,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "under 1% of requests failed (HTTP error or no answer) at level 3200/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.checks.level:3200",
+      "metric": "checks{level:3200}",
+      "rule": "rate > 0.99",
+      "limit": 0.99,
+      "actual": 0.995995,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "over 99% of the test's checks passed at level 3200/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_duration.level:6400",
+      "metric": "http_req_duration{level:6400}",
+      "rule": "p(95) < 500",
+      "limit": 500,
+      "actual": 0,
+      "unit": "ms",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "95% of requests answered within 500 ms at level 6400/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.http_req_failed.level:6400",
+      "metric": "http_req_failed{level:6400}",
+      "rule": "rate < 0.01",
+      "limit": 0.01,
+      "actual": 0,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "under 1% of requests failed (HTTP error or no answer) at level 6400/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.checks.level:6400",
+      "metric": "checks{level:6400}",
+      "rule": "rate > 0.99",
+      "limit": 0.99,
+      "actual": 0,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "over 99% of the test's checks passed at level 6400/s — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "k6.checks.scenario:warm-up",
+      "metric": "checks{scenario:warm-up}",
+      "rule": "rate > 0.99",
+      "limit": 0.99,
+      "actual": 1,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "over 99% of the test's checks passed (warm-up phase)"
+    },
+    {
+      "id": "k6.dropped_iterations",
+      "metric": "dropped_iterations",
+      "rule": "count < 1000",
+      "limit": 1000,
+      "actual": 640,
+      "unit": "events",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "under 1,000 events k6 could not send on time (dropped iterations) — finds the breaking point (not a verdict)",
+      "informational": true
+    },
+    {
+      "id": "breakpoint.held-up-to",
+      "metric": "heldUpTo",
+      "rule": "held up to >= 200",
+      "limit": 200,
+      "actual": 1600,
+      "unit": "events/s",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "Staircase held at least 200/s (4 × peak)"
+    }
+  ],
+  "breaking": {
+    "broke": true,
+    "startedBreakingAt": "2026-11-05T14:27:41.250+05:30",
+    "secondsIntoMeasure": 240,
+    "rateAtBreak": 3200,
+    "whatBroke": [
+      {
+        "metric": "level",
+        "description": "at 3,200/s: p95 812.5 ms (rule < 500 ms)",
+        "actual": 3200,
+        "limit": null,
+        "source": "k6"
+      }
+    ],
+    "heldUpTo": 1600,
+    "brokeAtRate": 3200,
+    "k6Limited": false,
+    "caughtUp": null,
+    "catchUpSeconds": null,
+    "remainingBacklog": null,
+    "gaveUpAfterSeconds": null,
+    "drainRate": null
+  },
+  "levels": [
+    {
+      "rate": 200,
+      "startedAt": "2026-11-05T14:23:41.250+05:30",
+      "endedAt": "2026-11-05T14:24:41.250+05:30",
+      "plannedEvents": 12000,
+      "requests": 12000,
+      "p95Ms": 12.1,
+      "failedRate": 0,
+      "checksRate": 1,
+      "result": "held",
+      "reasons": []
+    },
+    {
+      "rate": 400,
+      "startedAt": "2026-11-05T14:24:41.250+05:30",
+      "endedAt": "2026-11-05T14:25:41.250+05:30",
+      "plannedEvents": 24000,
+      "requests": 24000,
+      "p95Ms": 13,
+      "failedRate": 0,
+      "checksRate": 1,
+      "result": "held",
+      "reasons": []
+    },
+    {
+      "rate": 800,
+      "startedAt": "2026-11-05T14:25:41.250+05:30",
+      "endedAt": "2026-11-05T14:26:41.250+05:30",
+      "plannedEvents": 48000,
+      "requests": 48000,
+      "p95Ms": 18.4,
+      "failedRate": 0,
+      "checksRate": 1,
+      "result": "held",
+      "reasons": []
+    },
+    {
+      "rate": 1600,
+      "startedAt": "2026-11-05T14:26:41.250+05:30",
+      "endedAt": "2026-11-05T14:27:41.250+05:30",
+      "plannedEvents": 96000,
+      "requests": 95990,
+      "p95Ms": 61.3,
+      "failedRate": 0.000396,
+      "checksRate": 0.999604,
+      "result": "held",
+      "reasons": []
+    },
+    {
+      "rate": 3200,
+      "startedAt": "2026-11-05T14:27:41.250+05:30",
+      "endedAt": "2026-11-05T14:28:41.250+05:30",
+      "plannedEvents": 192000,
+      "requests": 79400,
+      "p95Ms": 812.5,
+      "failedRate": 0.004005,
+      "checksRate": 0.995995,
+      "result": "broke",
+      "reasons": [
+        "p95 812.5 ms (rule < 500 ms)"
+      ]
+    },
+    {
+      "rate": 6400,
+      "startedAt": "2026-11-05T14:28:41.250+05:30",
+      "endedAt": "2026-11-05T14:29:41.250+05:30",
+      "plannedEvents": 384000,
+      "requests": 0,
+      "p95Ms": null,
+      "failedRate": null,
+      "checksRate": null,
+      "result": "not-reached",
+      "reasons": []
+    }
+  ],
+  "timeSeries": {
+    "windowSeconds": 10,
+    "points": [
+      {
+        "t": 0,
+        "at": "2026-11-05T14:23:41.250+05:30",
+        "phase": "measure",
+        "level": 200,
+        "sent": 2000,
+        "sentPerSecond": 200,
+        "p95Ms": 11,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 10,
+        "at": "2026-11-05T14:23:51.250+05:30",
+        "phase": "measure",
+        "level": 200,
+        "sent": 2000,
+        "sentPerSecond": 200,
+        "p95Ms": 12,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 20,
+        "at": "2026-11-05T14:24:01.250+05:30",
+        "phase": "measure",
+        "level": 200,
+        "sent": 2000,
+        "sentPerSecond": 200,
+        "p95Ms": 12,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 30,
+        "at": "2026-11-05T14:24:11.250+05:30",
+        "phase": "measure",
+        "level": 200,
+        "sent": 2000,
+        "sentPerSecond": 200,
+        "p95Ms": 12,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 40,
+        "at": "2026-11-05T14:24:21.250+05:30",
+        "phase": "measure",
+        "level": 200,
+        "sent": 2000,
+        "sentPerSecond": 200,
+        "p95Ms": 13,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 50,
+        "at": "2026-11-05T14:24:31.250+05:30",
+        "phase": "measure",
+        "level": 200,
+        "sent": 2000,
+        "sentPerSecond": 200,
+        "p95Ms": 12,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 60,
+        "at": "2026-11-05T14:24:41.250+05:30",
+        "phase": "measure",
+        "level": 400,
+        "sent": 3900,
+        "sentPerSecond": 390,
+        "p95Ms": 13,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 70,
+        "at": "2026-11-05T14:24:51.250+05:30",
+        "phase": "measure",
+        "level": 400,
+        "sent": 4000,
+        "sentPerSecond": 400,
+        "p95Ms": 13,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 80,
+        "at": "2026-11-05T14:25:01.250+05:30",
+        "phase": "measure",
+        "level": 400,
+        "sent": 4000,
+        "sentPerSecond": 400,
+        "p95Ms": 13,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 90,
+        "at": "2026-11-05T14:25:11.250+05:30",
+        "phase": "measure",
+        "level": 400,
+        "sent": 4000,
+        "sentPerSecond": 400,
+        "p95Ms": 14,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 100,
+        "at": "2026-11-05T14:25:21.250+05:30",
+        "phase": "measure",
+        "level": 400,
+        "sent": 4000,
+        "sentPerSecond": 400,
+        "p95Ms": 13,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 110,
+        "at": "2026-11-05T14:25:31.250+05:30",
+        "phase": "measure",
+        "level": 400,
+        "sent": 4000,
+        "sentPerSecond": 400,
+        "p95Ms": 13,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 120,
+        "at": "2026-11-05T14:25:41.250+05:30",
+        "phase": "measure",
+        "level": 800,
+        "sent": 7800,
+        "sentPerSecond": 780,
+        "p95Ms": 17,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 130,
+        "at": "2026-11-05T14:25:51.250+05:30",
+        "phase": "measure",
+        "level": 800,
+        "sent": 8000,
+        "sentPerSecond": 800,
+        "p95Ms": 18,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 140,
+        "at": "2026-11-05T14:26:01.250+05:30",
+        "phase": "measure",
+        "level": 800,
+        "sent": 8000,
+        "sentPerSecond": 800,
+        "p95Ms": 18,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 150,
+        "at": "2026-11-05T14:26:11.250+05:30",
+        "phase": "measure",
+        "level": 800,
+        "sent": 8000,
+        "sentPerSecond": 800,
+        "p95Ms": 19,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 160,
+        "at": "2026-11-05T14:26:21.250+05:30",
+        "phase": "measure",
+        "level": 800,
+        "sent": 8000,
+        "sentPerSecond": 800,
+        "p95Ms": 18,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 170,
+        "at": "2026-11-05T14:26:31.250+05:30",
+        "phase": "measure",
+        "level": 800,
+        "sent": 8000,
+        "sentPerSecond": 800,
+        "p95Ms": 20,
+        "failedRate": 0,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 180,
+        "at": "2026-11-05T14:26:41.250+05:30",
+        "phase": "measure",
+        "level": 1600,
+        "sent": 15600,
+        "sentPerSecond": 1560,
+        "p95Ms": 35,
+        "failedRate": 0.000385,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 190,
+        "at": "2026-11-05T14:26:51.250+05:30",
+        "phase": "measure",
+        "level": 1600,
+        "sent": 16000,
+        "sentPerSecond": 1600,
+        "p95Ms": 48,
+        "failedRate": 0.000375,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 200,
+        "at": "2026-11-05T14:27:01.250+05:30",
+        "phase": "measure",
+        "level": 1600,
+        "sent": 16000,
+        "sentPerSecond": 1600,
+        "p95Ms": 55,
+        "failedRate": 0.000375,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 210,
+        "at": "2026-11-05T14:27:11.250+05:30",
+        "phase": "measure",
+        "level": 1600,
+        "sent": 16000,
+        "sentPerSecond": 1600,
+        "p95Ms": 61,
+        "failedRate": 0.000375,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 220,
+        "at": "2026-11-05T14:27:21.250+05:30",
+        "phase": "measure",
+        "level": 1600,
+        "sent": 16000,
+        "sentPerSecond": 1600,
+        "p95Ms": 66,
+        "failedRate": 0.000375,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 230,
+        "at": "2026-11-05T14:27:31.250+05:30",
+        "phase": "measure",
+        "level": 1600,
+        "sent": 16000,
+        "sentPerSecond": 1600,
+        "p95Ms": 72,
+        "failedRate": 0.000375,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 240,
+        "at": "2026-11-05T14:27:41.250+05:30",
+        "phase": "measure",
+        "level": 3200,
+        "sent": 31200,
+        "sentPerSecond": 3120,
+        "p95Ms": 240,
+        "failedRate": 0.004006,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 250,
+        "at": "2026-11-05T14:27:51.250+05:30",
+        "phase": "measure",
+        "level": 3200,
+        "sent": 32000,
+        "sentPerSecond": 3200,
+        "p95Ms": 650,
+        "failedRate": 0.004,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": true
+      },
+      {
+        "t": 260,
+        "at": "2026-11-05T14:28:01.250+05:30",
+        "phase": "measure",
+        "level": 3200,
+        "sent": 15700,
+        "sentPerSecond": 1570,
+        "p95Ms": 980,
+        "failedRate": 0.004013,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": true
+      }
+    ]
+  },
+  "serviceMetrics": null,
+  "dataChecks": [
+    {
+      "id": "collector.stored-equals-accepted",
+      "description": "Accepted events are stored",
+      "expected": 100000,
+      "actual": 100000,
+      "comparison": "between",
+      "passed": true,
+      "severity": "required"
+    }
+  ],
+  "conditions": {
+    "environment": {
+      "name": "local",
+      "kind": "local",
+      "configFile": "config/environments/local.json",
+      "serviceUrls": {
+        "collector": "http://localhost:8093",
+        "matcher": "http://localhost:8097",
+        "stepSla": "http://localhost:8099",
+        "protocol": "http://localhost:8096"
+      }
+    },
+    "host": {
+      "hostname": "perf-laptop",
+      "cpus": 16,
+      "memoryGb": 31,
+      "os": "linux 7.0.0",
+      "node": "v22.22.2",
+      "k6Image": "cce-load-tests/k6:2.3.0-kafka2.2.0",
+      "k6Version": null
+    },
+    "suite": {
+      "gitCommit": "abc1234",
+      "gitDirty": true
+    },
+    "planDefinitionSet": {
+      "name": "overlapping-4",
+      "fanOut": 4,
+      "planDefinitions": [
+        {
+          "name": "EmrServiceProtocol",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000001",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "consultation"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolStrict",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000002",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "consultation",
+            "complaints",
+            "history",
+            "diagnosis",
+            "treatment"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolLight",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000003",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "vitals-recording"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolLabFocus",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000004",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "lab-order",
+            "lab-results",
+            "diagnosis"
+          ]
+        }
+      ],
+      "otherActivePlanDefinitions": [],
+      "effectiveFanOut": 4,
+      "loadTestMarker": true,
+      "stepSlaSeedMode": null
+    },
+    "dataVolume": {
+      "capturedAt": "2026-11-05T14:22:35.000+05:30",
+      "dbSizeBytes": 1610612736,
+      "rows": {
+        "inbound_event_log": 250000,
+        "matcher_event_log": 250000,
+        "protocol_instance": 900000,
+        "step_instance": 1500000,
+        "step_sla_state_transition": 1200000
+      }
+    },
+    "dataset": {
+      "name": "ebuzima-emr",
+      "source": "loadtest-emr",
+      "facilityId": "LOADTEST-FACILITY-01",
+      "actionId": "visit-encounter"
+    },
+    "settings": {
+      "RUN_ID": {
+        "value": "20261105-142233",
+        "source": "cli"
+      },
+      "PLAN_DEFINITION_SET": {
+        "value": "overlapping-4",
+        "source": "cli"
+      },
+      "DATASET": {
+        "value": "ebuzima-emr",
+        "source": "default"
+      },
+      "EVENT_ACTION_ID": {
+        "value": null,
+        "source": "default"
+      },
+      "EVENT_SOURCE": {
+        "value": null,
+        "source": "default"
+      },
+      "FACILITY_ID": {
+        "value": null,
+        "source": "default"
+      },
+      "NOTE": {
+        "value": null,
+        "source": "default"
+      },
+      "PEAK_RATE": {
+        "value": 50,
+        "source": "default"
+      },
+      "EXPECTED_HEADROOM": {
+        "value": 4,
+        "source": "default"
+      },
+      "SMOKE_RATE": {
+        "value": 1,
+        "source": "default"
+      },
+      "SMOKE_DURATION": {
+        "value": 30,
+        "source": "default"
+      },
+      "SMOKE_EVENTS": {
+        "value": null,
+        "source": "default"
+      },
+      "LOAD_RATE": {
+        "value": 50,
+        "source": "default"
+      },
+      "LOAD_DURATION": {
+        "value": 600,
+        "source": "default"
+      },
+      "LOAD_EVENTS": {
+        "value": null,
+        "source": "default"
+      },
+      "STRESS_RATE": {
+        "value": 200,
+        "source": "default"
+      },
+      "STRESS_DURATION": {
+        "value": 600,
+        "source": "default"
+      },
+      "STRESS_EVENTS": {
+        "value": null,
+        "source": "default"
+      },
+      "WARM_UP_RATE": {
+        "value": 10,
+        "source": "default"
+      },
+      "WARM_UP_DURATION": {
+        "value": 60,
+        "source": "default"
+      },
+      "LEVELS": {
+        "value": [
+          200,
+          400,
+          800,
+          1600,
+          3200,
+          6400
+        ],
+        "source": "default"
+      },
+      "LEVEL_DURATION": {
+        "value": 60,
+        "source": "default"
+      },
+      "MATCHER_FLOOD_RATE": {
+        "value": 2000,
+        "source": "default"
+      },
+      "MATCHER_FLOOD_DURATION": {
+        "value": 60,
+        "source": "default"
+      },
+      "MATCHER_FLOOD_EVENTS": {
+        "value": null,
+        "source": "default"
+      },
+      "STEP_SLA_STORM_ALARMS": {
+        "value": 100000,
+        "source": "default"
+      },
+      "STEP_SLA_FIRST_RING_DELAY": {
+        "value": 60,
+        "source": "default"
+      },
+      "STEP_SLA_SEED_MODE": {
+        "value": "set",
+        "source": "default"
+      },
+      "STEP_SLA_ACTION_ID": {
+        "value": "vitals-recording",
+        "source": "default"
+      },
+      "STEP_SLA_SEED_MISSED_ALARMS": {
+        "value": false,
+        "source": "default"
+      },
+      "STEP_SLA_PEAK_ALARM_RATE": {
+        "value": null,
+        "source": "derived"
+      },
+      "MAX_VUS": {
+        "value": 2000,
+        "source": "default"
+      },
+      "KAFKA_PRE_ALLOCATED_VUS": {
+        "value": 100,
+        "source": "default"
+      },
+      "KAFKA_MAX_VUS": {
+        "value": 500,
+        "source": "default"
+      },
+      "HTTP_P95_LIMIT_MS": {
+        "value": 500,
+        "source": "default"
+      },
+      "HTTP_MAX_FAILED_RATE": {
+        "value": 0.01,
+        "source": "default"
+      },
+      "MIN_CHECKS_RATE": {
+        "value": 0.99,
+        "source": "default"
+      },
+      "MAX_DROPPED_RATE": {
+        "value": 0.001,
+        "source": "default"
+      },
+      "BREAKPOINT_MAX_DROPPED": {
+        "value": 1000,
+        "source": "default"
+      },
+      "K6_LIMIT_P95_MS": {
+        "value": 100,
+        "source": "default"
+      },
+      "RATE_SHORTFALL_TOLERANCE": {
+        "value": 0.05,
+        "source": "default"
+      },
+      "MATCHER_MAX_BACKLOG": {
+        "value": 1000,
+        "source": "default"
+      },
+      "MATCHER_MAX_CATCH_UP": {
+        "value": 30,
+        "source": "default"
+      },
+      "MATCHER_MAX_KAFKA_WRITE_ERRORS": {
+        "value": 0,
+        "source": "default"
+      },
+      "MATCHER_MAX_DEAD_LETTERS": {
+        "value": 0,
+        "source": "default"
+      },
+      "STEP_SLA_MAX_WAIT": {
+        "value": 10,
+        "source": "derived"
+      },
+      "STEP_SLA_STORM_MAX_CATCH_UP": {
+        "value": 300,
+        "source": "default"
+      },
+      "WATCH_INTERVAL": {
+        "value": 5,
+        "source": "default"
+      },
+      "CATCH_UP_LIMIT": {
+        "value": 120,
+        "source": "default"
+      },
+      "BREAKPOINT_CATCH_UP_LIMIT": {
+        "value": 900,
+        "source": "default"
+      },
+      "STALL_TIMEOUT": {
+        "value": 30,
+        "source": "default"
+      },
+      "IDLE_FLAT_DURATION": {
+        "value": 30,
+        "source": "default"
+      },
+      "IDLE_TIMEOUT": {
+        "value": 300,
+        "source": "default"
+      },
+      "ALLOW_OTHER_ACTIVE_PLAN_DEFINITIONS": {
+        "value": false,
+        "source": "default"
+      },
+      "EVENT_MODE": {
+        "value": "single",
+        "source": "default"
+      },
+      "WORKLOAD_PROFILE": {
+        "value": null,
+        "source": "default"
+      },
+      "REPORT_WINDOW": {
+        "value": 10,
+        "source": "default"
+      },
+      "BREAK_CONSECUTIVE_WINDOWS": {
+        "value": 2,
+        "source": "default"
+      },
+      "SKIP_PREFLIGHT": {
+        "value": false,
+        "source": "default"
+      },
+      "MONITORING_REQUIRED": {
+        "value": false,
+        "source": "default"
+      },
+      "PROMETHEUS_REMOTE_WRITE": {
+        "value": true,
+        "source": "default"
+      },
+      "K6_TREND_STATS": {
+        "value": "p(95),p(99),avg,med,min,max",
+        "source": "default"
+      },
+      "MIN_FREE_DISK_GB": {
+        "value": 20,
+        "source": "environment"
+      },
+      "CLEANUP_LEGACY_V1": {
+        "value": "auto",
+        "source": "default"
+      },
+      "CLEANUP_BATCH_SIZE": {
+        "value": 10000,
+        "source": "default"
+      },
+      "CLEANUP_LOCK_TIMEOUT": {
+        "value": 5,
+        "source": "default"
+      },
+      "CLEANUP_PAUSE": {
+        "value": 0.2,
+        "source": "default"
+      },
+      "CLEANUP_MIN_SAFE_WAL_GB": {
+        "value": 2,
+        "source": "default"
+      },
+      "CLEANUP_TEMP_INDEX": {
+        "value": "auto",
+        "source": "default"
+      },
+      "PROTOCOL_REFRESH_WAIT": {
+        "value": 65,
+        "source": "default"
+      },
+      "PLAN_DEFINITION_VERSION_SUFFIX": {
+        "value": null,
+        "source": "default"
+      },
+      "BASELINE": {
+        "value": null,
+        "source": "default"
+      },
+      "BASELINE_TOLERANCE": {
+        "value": 20,
+        "source": "default"
+      },
+      "BASELINE_MIN_RUNS": {
+        "value": 3,
+        "source": "default"
+      }
+    },
+    "preflight": null,
+    "note": ""
+  },
+  "baselineComparison": null,
+  "refinedFrom": null,
+  "artifacts": {
+    "runContext": "run-context.json",
+    "k6Summary": "k6-summary.json",
+    "k6Log": "k6.log",
+    "preflight": null,
+    "watchers": [],
+    "serviceMetrics": null,
+    "dataChecks": "data-checks.json",
+    "seedManifest": null,
+    "k6ExitCode": 99
+  },
+  "warnings": [],
+  "notes": []
+}

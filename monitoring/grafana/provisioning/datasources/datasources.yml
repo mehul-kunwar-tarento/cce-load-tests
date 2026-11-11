@@ -1,0 +1,26 @@
+# datasources.yml — the Prometheus datasource of the laptop Grafana
+#
+# What:    Tells Grafana where its metrics come from: the perf Prometheus of this stack. Name "Prometheus"
+#          and uid "prometheus" are the same as in CCE's Grafana, so the dashboards' DS_PROMETHEUS
+#          variable (type datasource, query "prometheus") picks it by default in both places.
+# How:     Read by Grafana at start-up from /etc/grafana/provisioning/datasources (mounted read-only by
+#          monitoring/docker-compose.yml). After a change: restart the grafana container.
+# Needs:   The prometheus service of the same compose file (reachable as http://prometheus:9090).
+# Outputs: One default datasource in Grafana (Connections → Data sources → Prometheus).
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    # "proxy": the Grafana server queries Prometheus, so the browser never needs to reach port 9090.
+    access: proxy
+    # Container name and port inside the Docker network, not the host port 9095.
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      # Match the 5 s scrape interval so $__interval and rate windows are not wider than needed.
+      timeInterval: 5s
+    # Provisioned = owned by this file; edits in the UI would be lost at the next restart anyway.
+    editable: false

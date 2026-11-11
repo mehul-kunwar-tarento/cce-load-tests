@@ -1,0 +1,41 @@
+# prometheus-scrape-jobs.example.yml — scrape jobs CCE ops would ADD to CCE's Prometheus (NOT applied)
+#
+# What:    The jobs CCE's own Prometheus lacks for the performance dashboards. On deploy-scripts
+#          release-2.0.0, both prometheus/prometheus.yml (docker compose) and the ConfigMap in
+#          k8s/base/monitoring/prometheus.yaml scrape the collector but not the matcher, Step SLA or
+#          protocol service (they still have the 1.x compliance/scheduler jobs). Without these jobs the
+#          matcher and Step SLA panels stay empty in CCE's Grafana.
+# How:     Hand this file to CCE ops once the 2.0 services are deployed there. They append the entries
+#          under scrape_configs: of their prometheus.yml (or the k8s ConfigMap; there the targets are the
+#          Kubernetes Service names, same form) and reload Prometheus. This repository never changes
+#          deploy-scripts (D6).
+# Needs:   The services reachable by container name on CCE's network (cce-net) on port 8080 with
+#          /actuator/prometheus exposed (management.endpoints.web.exposure.include contains prometheus,
+#          which release-2.0.0 does). Check the container names in deploy-scripts/docker-compose.yml.
+# Outputs: Nothing by itself; once applied, series with job="cce-matcher-service" etc., the job names the
+#          dashboards filter on.
+
+scrape_configs:
+  - job_name: 'cce-matcher-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['cce-matcher-service:8080']
+
+  - job_name: 'cce-step-sla-service'
+    metrics_path: /actuator/prometheus
+    # CCE scrapes every 15 s (global). Note: every scrape of this service runs one SQL count for the
+    # cce_sla_transitions_due gauge, so do not go much below 15 s on a shared database.
+    static_configs:
+      - targets: ['cce-step-sla-service:8080']
+
+  # Optional: the protocol service (loads plan definitions; not a test subject).
+  - job_name: 'cce-protocol-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['cce-protocol-service:8080']
+
+  # Optional, only if container CPU/memory panels are wanted in CCE's Grafana: CCE runs no cAdvisor.
+  # Ops would first add a cAdvisor container (see monitoring/docker-compose.yml for the settings used here).
+  # - job_name: 'cadvisor'
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']

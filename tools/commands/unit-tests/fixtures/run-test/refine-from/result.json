@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "cce-performance-result",
+  "runId": "20261105-120000",
+  "subject": "stub",
+  "testType": "breakpoint",
+  "breaking": {
+    "heldUpTo": 400,
+    "brokeAtRate": 800
+  }
+}

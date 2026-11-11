@@ -1,0 +1,687 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "cce-performance-result",
+  "runId": "20261105-150955",
+  "service": "cce-matcher-service",
+  "subject": "matcher",
+  "testType": "breakpoint",
+  "status": "passed",
+  "statusReason": "Every rule and every required data check passed",
+  "startedAt": "2026-11-05T15:09:55.000+05:30",
+  "endedAt": "2026-11-05T15:20:30.000+05:30",
+  "durationSeconds": 635,
+  "timing": {
+    "source": "k6-setup",
+    "k6StartedAt": "2026-11-05T14:40:03.500+05:30",
+    "measureStart": "2026-11-05T14:41:03.500+05:30",
+    "sendEnd": "2026-11-05T14:42:03.000+05:30",
+    "sendEndedEarly": true
+  },
+  "phases": [
+    {
+      "name": "warm-up",
+      "startedAt": "2026-11-05T14:40:03.500+05:30",
+      "endedAt": "2026-11-05T14:41:03.500+05:30",
+      "rate": 10,
+      "plannedEvents": 600
+    },
+    {
+      "name": "measure",
+      "startedAt": "2026-11-05T14:41:03.500+05:30",
+      "endedAt": "2026-11-05T14:42:03.000+05:30",
+      "rate": 2000,
+      "plannedEvents": 120000
+    },
+    {
+      "name": "catch-up",
+      "startedAt": "2026-11-05T14:42:03.000+05:30",
+      "endedAt": "2026-11-05T15:20:20.000+05:30",
+      "rate": null,
+      "plannedEvents": null
+    }
+  ],
+  "expectation": {
+    "summary": "Drain a flood of 120,000 events at ≥ 200 events/s (4 × peak 50/s).",
+    "targetRate": 200,
+    "peakRate": 50,
+    "multipleOfPeak": 4,
+    "unit": "events",
+    "toBeConfirmed": true
+  },
+  "load": {
+    "unit": "events",
+    "plannedEvents": 120600,
+    "eventsSent": 120565,
+    "eventsAccepted": 120565,
+    "eventsFailed": 0,
+    "eventsDropped": 35,
+    "droppedRate": 0.0002902155887230514,
+    "droppedAllowed": 120,
+    "eventsProcessed": 120565,
+    "measuredEventsSent": 119965,
+    "measuredEventsAccepted": 119965,
+    "measuredSeconds": 59.5,
+    "averageRate": 2016.218487394958,
+    "targetRate": 200
+  },
+  "latency": null,
+  "thresholds": [
+    {
+      "id": "k6.checks.scenario:warm-up",
+      "metric": "checks{scenario:warm-up}",
+      "rule": "rate > 0.99",
+      "limit": 0.99,
+      "actual": 1,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "over 99% of the test's checks passed (warm-up phase)"
+    },
+    {
+      "id": "k6.checks.scenario:measure",
+      "metric": "checks{scenario:measure}",
+      "rule": "rate > 0.99",
+      "limit": 0.99,
+      "actual": 1,
+      "unit": "ratio",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "over 99% of the test's checks passed (measured phase)"
+    },
+    {
+      "id": "k6.dropped_iterations",
+      "metric": "dropped_iterations",
+      "rule": "count <= 120",
+      "limit": 120,
+      "actual": 35,
+      "unit": "events",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "at most 120 events k6 could not send on time (dropped iterations)"
+    },
+    {
+      "id": "k6.kafka_writer_error_count",
+      "metric": "kafka_writer_error_count",
+      "rule": "count <= 0",
+      "limit": 0,
+      "actual": 0,
+      "unit": "errors",
+      "passed": true,
+      "toBeConfirmed": false,
+      "source": "k6",
+      "description": "at most 0 Kafka write errors"
+    },
+    {
+      "id": "matcher.drain-rate",
+      "metric": "drainRate",
+      "rule": "median > 0",
+      "limit": 0,
+      "actual": 312.5,
+      "unit": "events/s",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "watcher",
+      "description": "Matcher keeps draining the backlog (target ≥ 200 events/s)",
+      "informational": true
+    }
+  ],
+  "breaking": {
+    "broke": true,
+    "startedBreakingAt": "2026-11-05T14:41:15.000+05:30",
+    "secondsIntoMeasure": 11.5,
+    "rateAtBreak": 2000,
+    "whatBroke": [
+      {
+        "metric": "backlog",
+        "description": "up to 106,400 events waiting (flood)",
+        "actual": 106400,
+        "limit": 1000,
+        "source": "watcher"
+      }
+    ],
+    "heldUpTo": null,
+    "brokeAtRate": null,
+    "k6Limited": false,
+    "caughtUp": true,
+    "catchUpSeconds": 341,
+    "remainingBacklog": 0,
+    "gaveUpAfterSeconds": null,
+    "drainRate": 312.5
+  },
+  "levels": null,
+  "timeSeries": {
+    "windowSeconds": 10,
+    "points": [
+      {
+        "t": 0,
+        "at": "2026-11-05T14:41:03.500+05:30",
+        "phase": "measure",
+        "level": null,
+        "sent": 20000,
+        "sentPerSecond": 2000,
+        "p95Ms": null,
+        "failedRate": null,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 10,
+        "at": "2026-11-05T14:41:13.500+05:30",
+        "phase": "measure",
+        "level": null,
+        "sent": 20000,
+        "sentPerSecond": 2000,
+        "p95Ms": null,
+        "failedRate": null,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 20,
+        "at": "2026-11-05T14:41:23.500+05:30",
+        "phase": "measure",
+        "level": null,
+        "sent": 19990,
+        "sentPerSecond": 1999,
+        "p95Ms": null,
+        "failedRate": null,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 30,
+        "at": "2026-11-05T14:41:33.500+05:30",
+        "phase": "measure",
+        "level": null,
+        "sent": 19975,
+        "sentPerSecond": 1997.5,
+        "p95Ms": null,
+        "failedRate": null,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 40,
+        "at": "2026-11-05T14:41:43.500+05:30",
+        "phase": "measure",
+        "level": null,
+        "sent": 20000,
+        "sentPerSecond": 2000,
+        "p95Ms": null,
+        "failedRate": null,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      },
+      {
+        "t": 50,
+        "at": "2026-11-05T14:41:53.500+05:30",
+        "phase": "measure",
+        "level": null,
+        "sent": 20000,
+        "sentPerSecond": 2000,
+        "p95Ms": null,
+        "failedRate": null,
+        "backlog": null,
+        "processedPerSecond": null,
+        "broken": false
+      }
+    ]
+  },
+  "serviceMetrics": null,
+  "dataChecks": [
+    {
+      "id": "matcher.logged-equals-sent",
+      "description": "Every event sent is in matcher_event_log",
+      "expected": 120565,
+      "actual": 120565,
+      "comparison": "equals",
+      "passed": true,
+      "severity": "required"
+    }
+  ],
+  "conditions": {
+    "environment": {
+      "name": "local",
+      "kind": "local",
+      "configFile": "config/environments/local.json",
+      "serviceUrls": {
+        "collector": "http://localhost:8093",
+        "matcher": "http://localhost:8097",
+        "stepSla": "http://localhost:8099",
+        "protocol": "http://localhost:8096"
+      }
+    },
+    "host": {
+      "hostname": "perf-laptop",
+      "cpus": 16,
+      "memoryGb": 31,
+      "os": "linux 7.0.0",
+      "node": "v22.22.2",
+      "k6Image": "cce-load-tests/k6:2.3.0-kafka2.2.0",
+      "k6Version": null
+    },
+    "suite": {
+      "gitCommit": "abc1234",
+      "gitDirty": true
+    },
+    "planDefinitionSet": {
+      "name": "overlapping-4",
+      "fanOut": 4,
+      "planDefinitions": [
+        {
+          "name": "EmrServiceProtocol",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000001",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "consultation"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolStrict",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000002",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "consultation",
+            "complaints",
+            "history",
+            "diagnosis",
+            "treatment"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolLight",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000003",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "vitals-recording"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolLabFocus",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000004",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "lab-order",
+            "lab-results",
+            "diagnosis"
+          ]
+        }
+      ],
+      "otherActivePlanDefinitions": [],
+      "effectiveFanOut": 4,
+      "loadTestMarker": true,
+      "stepSlaSeedMode": null
+    },
+    "dataVolume": {
+      "capturedAt": "2026-11-05T14:22:35.000+05:30",
+      "dbSizeBytes": 1610612736,
+      "rows": {
+        "inbound_event_log": 250000,
+        "matcher_event_log": 250000,
+        "protocol_instance": 900000,
+        "step_instance": 1500000,
+        "step_sla_state_transition": 1200000
+      }
+    },
+    "dataset": {
+      "name": "ebuzima-emr",
+      "source": "loadtest-emr",
+      "facilityId": "LOADTEST-FACILITY-01",
+      "actionId": "visit-encounter"
+    },
+    "settings": {
+      "RUN_ID": {
+        "value": "20261105-150955",
+        "source": "cli"
+      },
+      "PLAN_DEFINITION_SET": {
+        "value": "overlapping-4",
+        "source": "cli"
+      },
+      "DATASET": {
+        "value": "ebuzima-emr",
+        "source": "default"
+      },
+      "EVENT_ACTION_ID": {
+        "value": null,
+        "source": "default"
+      },
+      "EVENT_SOURCE": {
+        "value": null,
+        "source": "default"
+      },
+      "FACILITY_ID": {
+        "value": null,
+        "source": "default"
+      },
+      "NOTE": {
+        "value": null,
+        "source": "default"
+      },
+      "PEAK_RATE": {
+        "value": 50,
+        "source": "default"
+      },
+      "EXPECTED_HEADROOM": {
+        "value": 4,
+        "source": "default"
+      },
+      "SMOKE_RATE": {
+        "value": 1,
+        "source": "default"
+      },
+      "SMOKE_DURATION": {
+        "value": 30,
+        "source": "default"
+      },
+      "SMOKE_EVENTS": {
+        "value": null,
+        "source": "default"
+      },
+      "LOAD_RATE": {
+        "value": 50,
+        "source": "default"
+      },
+      "LOAD_DURATION": {
+        "value": 600,
+        "source": "default"
+      },
+      "LOAD_EVENTS": {
+        "value": null,
+        "source": "default"
+      },
+      "STRESS_RATE": {
+        "value": 200,
+        "source": "default"
+      },
+      "STRESS_DURATION": {
+        "value": 600,
+        "source": "default"
+      },
+      "STRESS_EVENTS": {
+        "value": null,
+        "source": "default"
+      },
+      "WARM_UP_RATE": {
+        "value": 10,
+        "source": "default"
+      },
+      "WARM_UP_DURATION": {
+        "value": 60,
+        "source": "default"
+      },
+      "LEVELS": {
+        "value": [
+          200,
+          400,
+          800,
+          1600,
+          3200,
+          6400
+        ],
+        "source": "default"
+      },
+      "LEVEL_DURATION": {
+        "value": 60,
+        "source": "default"
+      },
+      "MATCHER_FLOOD_RATE": {
+        "value": 2000,
+        "source": "default"
+      },
+      "MATCHER_FLOOD_DURATION": {
+        "value": 60,
+        "source": "default"
+      },
+      "MATCHER_FLOOD_EVENTS": {
+        "value": null,
+        "source": "default"
+      },
+      "STEP_SLA_STORM_ALARMS": {
+        "value": 100000,
+        "source": "default"
+      },
+      "STEP_SLA_FIRST_RING_DELAY": {
+        "value": 60,
+        "source": "default"
+      },
+      "STEP_SLA_SEED_MODE": {
+        "value": "set",
+        "source": "default"
+      },
+      "STEP_SLA_ACTION_ID": {
+        "value": "vitals-recording",
+        "source": "default"
+      },
+      "STEP_SLA_SEED_MISSED_ALARMS": {
+        "value": false,
+        "source": "default"
+      },
+      "STEP_SLA_PEAK_ALARM_RATE": {
+        "value": null,
+        "source": "derived"
+      },
+      "MAX_VUS": {
+        "value": 2000,
+        "source": "default"
+      },
+      "KAFKA_PRE_ALLOCATED_VUS": {
+        "value": 100,
+        "source": "default"
+      },
+      "KAFKA_MAX_VUS": {
+        "value": 500,
+        "source": "default"
+      },
+      "HTTP_P95_LIMIT_MS": {
+        "value": 500,
+        "source": "default"
+      },
+      "HTTP_MAX_FAILED_RATE": {
+        "value": 0.01,
+        "source": "default"
+      },
+      "MIN_CHECKS_RATE": {
+        "value": 0.99,
+        "source": "default"
+      },
+      "MAX_DROPPED_RATE": {
+        "value": 0.001,
+        "source": "default"
+      },
+      "BREAKPOINT_MAX_DROPPED": {
+        "value": 1000,
+        "source": "default"
+      },
+      "K6_LIMIT_P95_MS": {
+        "value": 100,
+        "source": "default"
+      },
+      "RATE_SHORTFALL_TOLERANCE": {
+        "value": 0.05,
+        "source": "default"
+      },
+      "MATCHER_MAX_BACKLOG": {
+        "value": 1000,
+        "source": "default"
+      },
+      "MATCHER_MAX_CATCH_UP": {
+        "value": 30,
+        "source": "default"
+      },
+      "MATCHER_MAX_KAFKA_WRITE_ERRORS": {
+        "value": 0,
+        "source": "default"
+      },
+      "MATCHER_MAX_DEAD_LETTERS": {
+        "value": 0,
+        "source": "default"
+      },
+      "STEP_SLA_MAX_WAIT": {
+        "value": 10,
+        "source": "derived"
+      },
+      "STEP_SLA_STORM_MAX_CATCH_UP": {
+        "value": 300,
+        "source": "default"
+      },
+      "WATCH_INTERVAL": {
+        "value": 5,
+        "source": "default"
+      },
+      "CATCH_UP_LIMIT": {
+        "value": 120,
+        "source": "default"
+      },
+      "BREAKPOINT_CATCH_UP_LIMIT": {
+        "value": 900,
+        "source": "default"
+      },
+      "STALL_TIMEOUT": {
+        "value": 30,
+        "source": "default"
+      },
+      "IDLE_FLAT_DURATION": {
+        "value": 30,
+        "source": "default"
+      },
+      "IDLE_TIMEOUT": {
+        "value": 300,
+        "source": "default"
+      },
+      "ALLOW_OTHER_ACTIVE_PLAN_DEFINITIONS": {
+        "value": false,
+        "source": "default"
+      },
+      "EVENT_MODE": {
+        "value": "single",
+        "source": "default"
+      },
+      "WORKLOAD_PROFILE": {
+        "value": null,
+        "source": "default"
+      },
+      "REPORT_WINDOW": {
+        "value": 10,
+        "source": "default"
+      },
+      "BREAK_CONSECUTIVE_WINDOWS": {
+        "value": 2,
+        "source": "default"
+      },
+      "SKIP_PREFLIGHT": {
+        "value": false,
+        "source": "default"
+      },
+      "MONITORING_REQUIRED": {
+        "value": false,
+        "source": "default"
+      },
+      "PROMETHEUS_REMOTE_WRITE": {
+        "value": true,
+        "source": "default"
+      },
+      "K6_TREND_STATS": {
+        "value": "p(95),p(99),avg,med,min,max",
+        "source": "default"
+      },
+      "MIN_FREE_DISK_GB": {
+        "value": 20,
+        "source": "environment"
+      },
+      "CLEANUP_LEGACY_V1": {
+        "value": "auto",
+        "source": "default"
+      },
+      "CLEANUP_BATCH_SIZE": {
+        "value": 10000,
+        "source": "default"
+      },
+      "CLEANUP_LOCK_TIMEOUT": {
+        "value": 5,
+        "source": "default"
+      },
+      "CLEANUP_PAUSE": {
+        "value": 0.2,
+        "source": "default"
+      },
+      "CLEANUP_MIN_SAFE_WAL_GB": {
+        "value": 2,
+        "source": "default"
+      },
+      "CLEANUP_TEMP_INDEX": {
+        "value": "auto",
+        "source": "default"
+      },
+      "PROTOCOL_REFRESH_WAIT": {
+        "value": 65,
+        "source": "default"
+      },
+      "PLAN_DEFINITION_VERSION_SUFFIX": {
+        "value": null,
+        "source": "default"
+      },
+      "BASELINE": {
+        "value": null,
+        "source": "default"
+      },
+      "BASELINE_TOLERANCE": {
+        "value": 20,
+        "source": "default"
+      },
+      "BASELINE_MIN_RUNS": {
+        "value": 3,
+        "source": "default"
+      }
+    },
+    "preflight": null,
+    "note": ""
+  },
+  "baselineComparison": null,
+  "refinedFrom": null,
+  "artifacts": {
+    "runContext": "run-context.json",
+    "k6Summary": "k6-summary.json",
+    "k6Log": "k6.log",
+    "preflight": null,
+    "watchers": [
+      "watch-backlog.json"
+    ],
+    "serviceMetrics": null,
+    "dataChecks": "data-checks.json",
+    "seedManifest": null,
+    "k6ExitCode": 0
+  },
+  "warnings": [],
+  "notes": []
+}

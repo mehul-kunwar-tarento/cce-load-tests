@@ -1,0 +1,340 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "cce-performance-result",
+  "runId": "20261105-120000",
+  "service": "cce-collector-service",
+  "subject": "collector",
+  "testType": "load",
+  "status": "passed",
+  "statusReason": "Every rule and every required data check passed",
+  "startedAt": "2026-11-05T12:00:00.000+05:30",
+  "endedAt": "2026-11-05T12:11:30.000+05:30",
+  "durationSeconds": 690,
+  "timing": {
+    "source": "k6-setup",
+    "k6StartedAt": "2026-11-05T12:00:08.000+05:30",
+    "measureStart": "2026-11-05T12:01:08.000+05:30",
+    "sendEnd": "2026-11-05T12:11:08.000+05:30",
+    "sendEndedEarly": false
+  },
+  "phases": [
+    {
+      "name": "warm-up",
+      "startedAt": "2026-11-05T14:22:40.000+05:30",
+      "endedAt": "2026-11-05T14:23:40.000+05:30",
+      "rate": 10,
+      "plannedEvents": 600
+    },
+    {
+      "name": "measure",
+      "startedAt": "2026-11-05T14:23:40.000+05:30",
+      "endedAt": "2026-11-05T14:33:40.000+05:30",
+      "rate": 200,
+      "plannedEvents": 120000
+    }
+  ],
+  "expectation": {
+    "summary": "Withstand 50 events/s (1 × peak) for 10m with p95 < 500 ms and < 1% errors.",
+    "targetRate": 50,
+    "peakRate": 50,
+    "multipleOfPeak": 1,
+    "unit": "events",
+    "toBeConfirmed": true
+  },
+  "load": {
+    "unit": "events",
+    "plannedEvents": 30600,
+    "eventsSent": 30600,
+    "eventsAccepted": 30600,
+    "eventsFailed": 0,
+    "eventsDropped": 0,
+    "droppedRate": 0,
+    "droppedAllowed": 30,
+    "eventsProcessed": null,
+    "measuredEventsSent": 30000,
+    "measuredEventsAccepted": 30000,
+    "measuredSeconds": 600,
+    "averageRate": 50,
+    "targetRate": 50
+  },
+  "latency": {
+    "unit": "ms",
+    "source": "k6 http_req_duration{scenario:measure}",
+    "avg": 9.1,
+    "med": 8.2,
+    "p90": 13.1,
+    "p95": 15.4,
+    "p99": 31.2,
+    "max": 120.5
+  },
+  "thresholds": [
+    {
+      "id": "k6.http_req_duration.scenario:measure",
+      "metric": "http_req_duration{scenario:measure}",
+      "rule": "p(95) < 500",
+      "limit": 500,
+      "actual": 15.4,
+      "unit": "ms",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "k6",
+      "description": "95% of requests answered within 500 ms (measured phase)"
+    }
+  ],
+  "breaking": {
+    "broke": false,
+    "startedBreakingAt": null,
+    "secondsIntoMeasure": null,
+    "rateAtBreak": null,
+    "whatBroke": [],
+    "heldUpTo": null,
+    "brokeAtRate": null,
+    "k6Limited": false,
+    "caughtUp": null,
+    "catchUpSeconds": null,
+    "remainingBacklog": null,
+    "gaveUpAfterSeconds": null,
+    "drainRate": null
+  },
+  "levels": null,
+  "timeSeries": {
+    "windowSeconds": 10,
+    "points": []
+  },
+  "serviceMetrics": {
+    "file": "service-metrics.json",
+    "peaks": {
+      "matcher": {
+        "hikariPendingMax": {
+          "value": 7,
+          "firstAt": "2026-11-05T14:24:02.000+05:30"
+        },
+        "heapUsedMaxBytes": {
+          "value": 812000000,
+          "firstAt": null
+        },
+        "gcPauseMaxMs": {
+          "value": 48,
+          "firstAt": null
+        },
+        "processCpuMax": {
+          "value": 0.71,
+          "firstAt": null
+        },
+        "processingMsAvg": {
+          "value": 17.2,
+          "firstAt": null
+        }
+      }
+    }
+  },
+  "dataChecks": [
+    {
+      "id": "collector.stored-equals-accepted",
+      "description": "Accepted events are stored",
+      "expected": 30600,
+      "actual": 30600,
+      "comparison": "equals",
+      "passed": true,
+      "severity": "required"
+    }
+  ],
+  "conditions": {
+    "environment": {
+      "name": "local",
+      "kind": "local",
+      "configFile": "config/environments/local.json",
+      "serviceUrls": {
+        "collector": "http://localhost:8093",
+        "matcher": "http://localhost:8097",
+        "stepSla": "http://localhost:8099",
+        "protocol": "http://localhost:8096"
+      }
+    },
+    "host": {
+      "hostname": "perf-laptop",
+      "cpus": 16,
+      "memoryGb": 31,
+      "os": "linux 7.0.0",
+      "node": "v22.22.2",
+      "k6Image": "cce-load-tests/k6:2.3.0-kafka2.2.0",
+      "k6Version": null
+    },
+    "suite": {
+      "gitCommit": "abc1234",
+      "gitDirty": true
+    },
+    "planDefinitionSet": {
+      "name": "overlapping-4",
+      "fanOut": 4,
+      "planDefinitions": [
+        {
+          "name": "EmrServiceProtocol",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000001",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "consultation"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolStrict",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000002",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "consultation",
+            "complaints",
+            "history",
+            "diagnosis",
+            "treatment"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolLight",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000003",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "vitals-recording"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolLabFocus",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000004",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "lab-order",
+            "lab-results",
+            "diagnosis"
+          ]
+        }
+      ],
+      "otherActivePlanDefinitions": [],
+      "effectiveFanOut": 4,
+      "loadTestMarker": true,
+      "stepSlaSeedMode": null
+    },
+    "dataset": {
+      "name": "ebuzima-emr",
+      "source": "loadtest-emr",
+      "facilityId": "LOADTEST-FACILITY-01",
+      "actionId": "visit-encounter"
+    },
+    "dataVolume": {
+      "capturedAt": "2026-11-05T14:22:35.000+05:30",
+      "dbSizeBytes": 1610612736,
+      "rows": {
+        "inbound_event_log": 250000,
+        "matcher_event_log": 250000,
+        "protocol_instance": 900000,
+        "step_instance": 1500000,
+        "step_sla_state_transition": 1200000
+      }
+    },
+    "settings": {
+      "PEAK_RATE": {
+        "value": 50,
+        "source": "default"
+      },
+      "EXPECTED_HEADROOM": {
+        "value": 4,
+        "source": "default"
+      },
+      "STRESS_RATE": {
+        "value": 200,
+        "source": "default"
+      },
+      "STRESS_DURATION": {
+        "value": 600,
+        "source": "default"
+      },
+      "WARM_UP_RATE": {
+        "value": 10,
+        "source": "default"
+      },
+      "WARM_UP_DURATION": {
+        "value": 60,
+        "source": "default"
+      },
+      "MAX_DROPPED_RATE": {
+        "value": 0.001,
+        "source": "default"
+      },
+      "MATCHER_MAX_BACKLOG": {
+        "value": 1000,
+        "source": "default"
+      },
+      "MATCHER_MAX_CATCH_UP": {
+        "value": 30,
+        "source": "default"
+      },
+      "CATCH_UP_LIMIT": {
+        "value": 120,
+        "source": "default"
+      },
+      "PLAN_DEFINITION_SET": {
+        "value": "overlapping-4",
+        "source": "cli"
+      },
+      "DATASET": {
+        "value": "ebuzima-emr",
+        "source": "default"
+      },
+      "STEP_SLA_PEAK_ALARM_RATE": {
+        "value": 150,
+        "source": "derived"
+      },
+      "LOAD_RATE": {
+        "value": 50,
+        "source": "default"
+      },
+      "LOAD_DURATION": {
+        "value": 600,
+        "source": "default"
+      }
+    },
+    "preflight": {
+      "status": "passed-with-warnings",
+      "skipped": false,
+      "warnings": [
+        "autovacuum: 1 vacuum in progress"
+      ]
+    },
+    "note": ""
+  },
+  "baselineComparison": null,
+  "refinedFrom": null,
+  "artifacts": {
+    "runContext": "run-context.json",
+    "k6Summary": "k6-summary.json",
+    "k6Log": "k6.log",
+    "preflight": "preflight.json",
+    "watchers": [],
+    "serviceMetrics": "service-metrics.json",
+    "dataChecks": "data-checks.json",
+    "seedManifest": null,
+    "k6ExitCode": 0
+  },
+  "warnings": [],
+  "notes": []
+}

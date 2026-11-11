@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openphc.org/cce-performance-tests/cleanup.schema.json",
+  "$comment": "What: JSON Schema (documentation) of the cleanup JSON (plan §5.6): scope, guards, disk/WAL before and after, per-table before/deleted/after counts. How: read it to know the fields; the code check is validateCleanup() in tools/core/result-schema.mjs. Needs: nothing. Outputs: nothing; produced by tools/cleanup/cleanup.mjs runCleanup() as results/<run>/cleanup-<stamp>.json or results/cleanup-<runId|all>-<stamp>/cleanup.json.",
+  "title": "CCE performance cleanup result",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "environment",
+    "mode",
+    "scope",
+    "startedAt",
+    "status",
+    "guards",
+    "tables",
+    "totals"
+  ],
+  "$defs": {
+    "count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "disk": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "resultsFreeGb": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dataStoresFreeGb": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dataStoresSource": {
+          "enum": [
+            "docker-root",
+            "not-measurable"
+          ]
+        },
+        "dbSizeBytes": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "walBytes": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "wal": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "slotName": {
+                "type": "string"
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "walStatus": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "reserved | extended | unreserved | lost"
+              },
+              "safeWalSizeBytes": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "lagBytes": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "maxSlotWalKeepSize": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "kind": {
+      "const": "cce-cleanup"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "dry-run",
+        "delete",
+        "print-sql"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "required": [
+        "runId",
+        "all",
+        "selectors"
+      ],
+      "properties": {
+        "runId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "all": {
+          "type": "boolean"
+        },
+        "prefix": {
+          "type": "string"
+        },
+        "selectors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "LIKE prefixes, each ending with the id code (or LOADTEST- for --all / LOADTEST-<runId>- for legacy v1)"
+        },
+        "legacyV1": {
+          "type": "boolean"
+        },
+        "runStartLowerBound": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "usedRunContext": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runStartSource": {
+          "enum": [
+            "run-context",
+            "run-id-earliest",
+            null
+          ],
+          "description": "Where runStartLowerBound came from: the run's run-context.json, or guessed from the run id (its clock read as UTC minus 14 h, valid for a run made in any time zone)"
+        }
+      }
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "endedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "verified",
+        "incomplete",
+        "refused",
+        "dry-run",
+        "error"
+      ],
+      "description": "verified only when every table's after is 0"
+    },
+    "settings": {
+      "type": "object",
+      "description": "Cleanup settings used: { NAME: { value, source } } (CLEANUP_*, MIN_FREE_DISK_GB, IDLE_*, EVENT_SOURCE); source is default | environment | env-var | cli",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "value": {},
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "guards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "not-prod, allow-cleanup, run-id-unique, database-name, disk-results, disk-data-stores, slot-health, due-transitions, matcher-idle, confirmation"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "skip"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "disk": {
+      "type": "object",
+      "properties": {
+        "before": {
+          "$ref": "#/$defs/disk"
+        },
+        "after": {
+          "$ref": "#/$defs/disk"
+        }
+      }
+    },
+    "wal": {
+      "type": "object",
+      "properties": {
+        "before": {
+          "$ref": "#/$defs/wal"
+        },
+        "after": {
+          "$ref": "#/$defs/wal"
+        }
+      }
+    },
+    "tables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "order",
+          "table",
+          "before",
+          "after"
+        ],
+        "properties": {
+          "order": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 13
+          },
+          "table": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "exists": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "before": {
+            "$ref": "#/$defs/count"
+          },
+          "deleted": {
+            "$ref": "#/$defs/count"
+          },
+          "after": {
+            "$ref": "#/$defs/count"
+          },
+          "afterBySnapshot": {
+            "$ref": "#/$defs/count"
+          },
+          "afterByPredicate": {
+            "$ref": "#/$defs/count"
+          },
+          "batches": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "durationMs": {
+            "type": "number"
+          },
+          "skippedReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "properties": {
+        "before": {
+          "type": "integer"
+        },
+        "deleted": {
+          "type": "integer"
+        },
+        "after": {
+          "type": "integer"
+        }
+      }
+    },
+    "tempIndex": {
+      "type": "object",
+      "properties": {
+        "used": {
+          "type": "boolean"
+        },
+        "created": {
+          "type": "boolean"
+        },
+        "dropped": {
+          "type": "boolean"
+        }
+      }
+    },
+    "analyzed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "savedTo": {
+      "type": "string",
+      "description": "Absolute path the JSON was written to (added after writing; absent in print-sql mode)"
+    }
+  }
+}

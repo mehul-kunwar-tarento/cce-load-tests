@@ -1,0 +1,184 @@
+{
+  "metrics": {
+    "events_sent": {
+      "type": "counter",
+      "values": {
+        "count": 100,
+        "rate": 47.6
+      }
+    },
+    "events_accepted": {
+      "type": "counter",
+      "values": {
+        "count": 100,
+        "rate": 47.6
+      }
+    },
+    "events_sent{scenario:measure}": {
+      "type": "counter",
+      "values": {
+        "count": 100,
+        "rate": 47.6
+      },
+      "thresholds": {
+        "count>=0": {
+          "ok": true
+        }
+      }
+    },
+    "events_accepted{scenario:measure}": {
+      "type": "counter",
+      "values": {
+        "count": 100,
+        "rate": 47.6
+      },
+      "thresholds": {
+        "count>=0": {
+          "ok": true
+        }
+      }
+    },
+    "http_reqs": {
+      "type": "counter",
+      "values": {
+        "count": 100,
+        "rate": 47.6
+      }
+    },
+    "http_req_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 9.5,
+        "min": 4.1,
+        "med": 8.8,
+        "max": 31.0,
+        "p(90)": 12.0,
+        "p(95)": 12.5,
+        "p(99)": 20.1
+      }
+    },
+    "http_req_duration{scenario:measure}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 9.5,
+        "min": 4.1,
+        "med": 8.8,
+        "max": 31.0,
+        "p(90)": 12.0,
+        "p(95)": 12.5,
+        "p(99)": 20.1
+      },
+      "thresholds": {
+        "p(95)<500": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_failed{scenario:measure}": {
+      "type": "rate",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 100
+      },
+      "thresholds": {
+        "rate<0.01": {
+          "ok": true
+        }
+      }
+    },
+    "checks{scenario:measure}": {
+      "type": "rate",
+      "values": {
+        "rate": 1,
+        "passes": 200,
+        "fails": 0
+      },
+      "thresholds": {
+        "rate>0.99": {
+          "ok": true
+        }
+      }
+    },
+    "dropped_iterations": {
+      "type": "counter",
+      "values": {
+        "count": 0,
+        "rate": 0
+      },
+      "thresholds": {
+        "count<=0": {
+          "ok": true
+        }
+      }
+    },
+    "iterations{window:0}": {
+      "type": "counter",
+      "values": {
+        "count": 100,
+        "rate": 47.6
+      },
+      "thresholds": {
+        "count>=0": {
+          "ok": true
+        }
+      }
+    },
+    "checks{window:0}": {
+      "type": "rate",
+      "values": {
+        "rate": 1,
+        "passes": 200,
+        "fails": 0
+      },
+      "thresholds": {
+        "rate>=0": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_duration{window:0}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 12.5
+      },
+      "thresholds": {
+        "p(95)>=0": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_failed{window:0}": {
+      "type": "rate",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 100
+      },
+      "thresholds": {
+        "rate>=0": {
+          "ok": true
+        }
+      }
+    }
+  },
+  "setup_data": {
+    "k6StartedAtMs": 0
+  },
+  "state": {
+    "isStdOutTTY": false,
+    "isStdErrTTY": false,
+    "testRunDurationMs": 2100.5
+  },
+  "context": {
+    "runId": "(set by the test)",
+    "subject": "stub",
+    "testType": "load",
+    "phasePlan": null,
+    "k6StartedAt": "(set by the test)",
+    "testRunDurationMs": 2100.5
+  }
+}

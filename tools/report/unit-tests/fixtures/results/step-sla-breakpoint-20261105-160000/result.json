@@ -1,0 +1,302 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "cce-performance-result",
+  "runId": "20261105-160000",
+  "service": "cce-step-sla-service",
+  "subject": "step-sla",
+  "testType": "breakpoint",
+  "status": "passed",
+  "statusReason": "Every rule and every required data check passed",
+  "startedAt": "2026-11-05T16:00:00.000+05:30",
+  "endedAt": "2026-11-05T16:12:00.000+05:30",
+  "durationSeconds": 720,
+  "timing": {
+    "source": "seed",
+    "k6StartedAt": null,
+    "measureStart": "2026-11-05T16:01:00.000+05:30",
+    "sendEnd": "2026-11-05T16:01:00.000+05:30",
+    "sendEndedEarly": false
+  },
+  "phases": [
+    {
+      "name": "measure",
+      "startedAt": "2026-11-05T16:01:00.000+05:30",
+      "endedAt": "2026-11-05T16:01:00.000+05:30",
+      "rate": 0,
+      "plannedEvents": 100000
+    }
+  ],
+  "expectation": {
+    "summary": "Handle a storm of 100,000 alarms ringing at once within 5m (drain ≥ 600 alarms/s = 4 × peak 150 alarms/s).",
+    "targetRate": 600,
+    "peakRate": 150,
+    "multipleOfPeak": 4,
+    "unit": "alarms",
+    "toBeConfirmed": true
+  },
+  "load": {
+    "unit": "alarms",
+    "plannedEvents": 100000,
+    "eventsSent": 100000,
+    "eventsAccepted": 100000,
+    "eventsFailed": 0,
+    "eventsDropped": null,
+    "droppedRate": null,
+    "droppedAllowed": null,
+    "eventsProcessed": 100000,
+    "measuredEventsSent": 100000,
+    "measuredEventsAccepted": 100000,
+    "measuredSeconds": 0,
+    "averageRate": null,
+    "targetRate": 600
+  },
+  "latency": null,
+  "thresholds": [
+    {
+      "id": "step-sla.storm-catch-up",
+      "metric": "catchUpSeconds",
+      "rule": "catch-up < 300 s",
+      "limit": 300,
+      "actual": 121,
+      "unit": "s",
+      "passed": true,
+      "toBeConfirmed": true,
+      "source": "watcher",
+      "description": "Every alarm handled within 5m of the storm"
+    }
+  ],
+  "breaking": {
+    "broke": false,
+    "startedBreakingAt": null,
+    "secondsIntoMeasure": null,
+    "rateAtBreak": null,
+    "whatBroke": [],
+    "heldUpTo": null,
+    "brokeAtRate": null,
+    "k6Limited": false,
+    "caughtUp": true,
+    "catchUpSeconds": 121,
+    "remainingBacklog": 0,
+    "gaveUpAfterSeconds": null,
+    "drainRate": 826.4
+  },
+  "levels": null,
+  "timeSeries": {
+    "windowSeconds": 10,
+    "points": []
+  },
+  "serviceMetrics": {
+    "file": "service-metrics.json",
+    "peaks": {
+      "step-sla": {
+        "slaCycleCapHits": {
+          "value": 9,
+          "firstAt": "2026-11-05T16:01:05.000+05:30"
+        }
+      }
+    }
+  },
+  "dataChecks": [
+    {
+      "id": "step-sla.all-handled",
+      "description": "Every seeded alarm handled",
+      "expected": 100000,
+      "actual": 100000,
+      "comparison": "equals",
+      "passed": true,
+      "severity": "required"
+    }
+  ],
+  "conditions": {
+    "environment": {
+      "name": "local",
+      "kind": "local",
+      "configFile": "config/environments/local.json",
+      "serviceUrls": {
+        "collector": "http://localhost:8093",
+        "matcher": "http://localhost:8097",
+        "stepSla": "http://localhost:8099",
+        "protocol": "http://localhost:8096"
+      }
+    },
+    "host": {
+      "hostname": "perf-laptop",
+      "cpus": 16,
+      "memoryGb": 31,
+      "os": "linux 7.0.0",
+      "node": "v22.22.2",
+      "k6Image": "cce-load-tests/k6:2.3.0-kafka2.2.0",
+      "k6Version": null
+    },
+    "suite": {
+      "gitCommit": "abc1234",
+      "gitDirty": true
+    },
+    "planDefinitionSet": {
+      "name": "overlapping-4",
+      "fanOut": 4,
+      "planDefinitions": [
+        {
+          "name": "EmrServiceProtocol",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000001",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "consultation"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolStrict",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000002",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "consultation",
+            "complaints",
+            "history",
+            "diagnosis",
+            "treatment"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolLight",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000003",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "vitals-recording"
+          ]
+        },
+        {
+          "name": "EmrServiceProtocolLabFocus",
+          "url": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus",
+          "version": "1.0.0",
+          "canonical": "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus|1.0.0",
+          "status": "ACTIVE",
+          "id": "0192f3a1-2b3c-7000-8000-000000000004",
+          "updatedAt": "2026-11-05T10:00:00.000+05:30",
+          "mandatorySteps": [
+            "visit-encounter",
+            "vitals-recording",
+            "lab-order",
+            "lab-results",
+            "diagnosis"
+          ]
+        }
+      ],
+      "otherActivePlanDefinitions": [],
+      "effectiveFanOut": 4,
+      "loadTestMarker": true,
+      "stepSlaSeedMode": "set"
+    },
+    "dataset": {
+      "name": "ebuzima-emr",
+      "source": "loadtest-emr",
+      "facilityId": "LOADTEST-FACILITY-01",
+      "actionId": "visit-encounter"
+    },
+    "dataVolume": {
+      "capturedAt": "2026-11-05T14:22:35.000+05:30",
+      "dbSizeBytes": 1610612736,
+      "rows": {
+        "inbound_event_log": 250000,
+        "matcher_event_log": 250000,
+        "protocol_instance": 900000,
+        "step_instance": 1500000,
+        "step_sla_state_transition": 1200000
+      }
+    },
+    "settings": {
+      "PEAK_RATE": {
+        "value": 50,
+        "source": "default"
+      },
+      "EXPECTED_HEADROOM": {
+        "value": 4,
+        "source": "default"
+      },
+      "STRESS_RATE": {
+        "value": 200,
+        "source": "default"
+      },
+      "STRESS_DURATION": {
+        "value": 600,
+        "source": "default"
+      },
+      "WARM_UP_RATE": {
+        "value": 10,
+        "source": "default"
+      },
+      "WARM_UP_DURATION": {
+        "value": 60,
+        "source": "default"
+      },
+      "MAX_DROPPED_RATE": {
+        "value": 0.001,
+        "source": "default"
+      },
+      "MATCHER_MAX_BACKLOG": {
+        "value": 1000,
+        "source": "default"
+      },
+      "MATCHER_MAX_CATCH_UP": {
+        "value": 30,
+        "source": "default"
+      },
+      "CATCH_UP_LIMIT": {
+        "value": 120,
+        "source": "default"
+      },
+      "PLAN_DEFINITION_SET": {
+        "value": "overlapping-4",
+        "source": "cli"
+      },
+      "DATASET": {
+        "value": "ebuzima-emr",
+        "source": "default"
+      },
+      "STEP_SLA_PEAK_ALARM_RATE": {
+        "value": 150,
+        "source": "derived"
+      }
+    },
+    "preflight": {
+      "status": "passed-with-warnings",
+      "skipped": false,
+      "warnings": [
+        "autovacuum: 1 vacuum in progress"
+      ]
+    },
+    "note": ""
+  },
+  "baselineComparison": null,
+  "refinedFrom": null,
+  "artifacts": {
+    "runContext": "run-context.json",
+    "k6Summary": null,
+    "k6Log": null,
+    "preflight": "preflight.json",
+    "watchers": [
+      "watch-alarms.json"
+    ],
+    "serviceMetrics": "service-metrics.json",
+    "dataChecks": "data-checks.json",
+    "seedManifest": "seed.json",
+    "k6ExitCode": null
+  },
+  "warnings": [],
+  "notes": []
+}

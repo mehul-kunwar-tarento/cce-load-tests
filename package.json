@@ -1,0 +1,27 @@
+{
+  "name": "cce-performance-tests",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "description": "What: performance tests of the CCE collector, matcher and Step SLA services (k6 in Docker + one Node.js CLI for settings, preflight, runs, reports, baselines and cleanup). How: npm test / npm run lint / npm run perf -- run local collector smoke (or scripts/run-test.sh local collector smoke). Needs: Node 22, Docker with the image cce-load-tests/k6:2.3.0-kafka2.2.0, a CCE stack (config/environments/<env>.json), DB_PASSWORD in the environment for database checks. Outputs: results/<subject>-<test-type>-<yyyymmdd-hhmmss>/ (result.json, report.md, …) and baselines/<name>.json.",
+  "scripts": {
+    "perf": "node tools/cli.mjs",
+    "test": "node --test \"lib/**/*.spec.mjs\" \"tools/**/*.spec.mjs\" \"cce-*/**/*.spec.mjs\" \"monitoring/**/*.spec.mjs\"",
+    "lint": "eslint . && prettier --check . && node tools/cli.mjs lint-headers && npm run lint:shell",
+    "lint:shell": "node tools/core/run-shellcheck.mjs scripts/*.sh",
+    "format": "prettier --write .",
+    "check:k6": "node tools/core/inspect-k6.mjs"
+  },
+  "dependencies": {
+    "kafkajs": "2.2.4",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.14.0",
+    "globals": "17.14.0",
+    "prettier": "3.9.10"
+  }
+}

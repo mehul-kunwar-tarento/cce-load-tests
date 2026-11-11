@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openphc.org/cce-performance-tests/preflight.schema.json",
+  "$comment": "What: JSON Schema (documentation) of preflight.json, written before every run (plan §5.5). How: read it to know the fields; the code check is validatePreflight() in tools/core/result-schema.mjs. Needs: nothing. Outputs: nothing; produced by tools/preflight/preflight.mjs runPreflight().",
+  "title": "CCE performance preflight result",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "environment", "startedAt", "status", "checks"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "kind": { "const": "cce-preflight" },
+    "environment": { "type": "string", "description": "Environment name, e.g. local" },
+    "subject": { "type": ["string", "null"], "description": "Tested subject (comma-separated when several); null for a stack check" },
+    "subjects": { "type": "array", "items": { "type": "string" } },
+    "planDefinitionSet": { "type": ["string", "null"], "description": "PLAN_DEFINITION_SET checked" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "endedAt": { "type": ["string", "null"], "format": "date-time" },
+    "status": { "enum": ["passed", "passed-with-warnings", "failed"] },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "severity", "status", "detail"],
+        "properties": {
+          "id": { "type": "string", "description": "Check id of plan §7.1, e.g. service-health.matcher" },
+          "title": { "type": "string" },
+          "severity": { "enum": ["required", "warning"], "description": "required: a fail stops the run" },
+          "status": { "enum": ["pass", "fail", "warn", "skip"], "description": "a fail of a warning-level check is reported as warn" },
+          "detail": { "type": "string" },
+          "durationMs": { "type": "number" },
+          "data": {
+            "type": "object",
+            "description": "Check-specific facts; plan-definition-set carries planDefinitions, otherActivePlanDefinitions and effectiveFanOut"
+          }
+        }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" }, "description": "'<id>: <detail>' of every warn, copied to result.conditions.preflight.warnings" }
+  }
+}

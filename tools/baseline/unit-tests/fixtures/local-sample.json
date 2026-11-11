@@ -1,0 +1,95 @@
+{
+  "$comment": "What: a saved performance baseline (fixture). How: loaded by baseline.spec.mjs. Needs: nothing. Outputs: nothing.",
+  "schemaVersion": "1.0.0",
+  "kind": "cce-performance-baseline",
+  "name": "local-sample",
+  "note": "fixture",
+  "savedAt": "2026-11-05T18:00:00.000+05:30",
+  "provisional": false,
+  "conditions": {
+    "environment": "local",
+    "host": { "hostname": "perf-laptop", "cpus": 16 },
+    "k6Image": "cce-load-tests/k6:2.3.0-kafka2.2.0",
+    "planDefinitionSet": {
+      "name": "overlapping-4",
+      "fanOut": 4,
+      "canonicals": [
+        "http://openphc.org/fhir/PlanDefinition/emr-service-protocol|1.0.0",
+        "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-strict|1.0.0",
+        "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-light|1.0.0",
+        "http://openphc.org/fhir/PlanDefinition/emr-service-protocol-lab-focus|1.0.0"
+      ]
+    },
+    "dataset": "ebuzima-emr",
+    "settings": {
+      "PEAK_RATE": 50,
+      "LOAD_RATE": 50,
+      "LOAD_DURATION": 600,
+      "STRESS_RATE": 200,
+      "STRESS_DURATION": 600
+    },
+    "dataVolume": { "dbSizeBytes": 536870912, "rows": { "protocol_instance": 900000 } },
+    "suiteCommit": "abc1234"
+  },
+  "runs": [
+    {
+      "dir": "results/collector-load-20261101-120000",
+      "runId": "20261101-120000",
+      "subject": "collector",
+      "testType": "load",
+      "status": "passed"
+    },
+    {
+      "dir": "results/collector-load-20261102-120000",
+      "runId": "20261102-120000",
+      "subject": "collector",
+      "testType": "load",
+      "status": "passed"
+    },
+    {
+      "dir": "results/collector-load-20261103-120000",
+      "runId": "20261103-120000",
+      "subject": "collector",
+      "testType": "load",
+      "status": "passed"
+    }
+  ],
+  "metrics": {
+    "collector.load.p95Ms": {
+      "label": "Collector load p95",
+      "unit": "ms",
+      "better": "lower",
+      "values": [15.4, 16, 14.9],
+      "mean": 15.433,
+      "min": 14.9,
+      "max": 16,
+      "stddev": 0.45,
+      "runs": 3,
+      "notCaughtUp": 0
+    },
+    "collector.load.averageRate": {
+      "label": "Collector load average rate",
+      "unit": "events/s",
+      "better": "higher",
+      "values": [50, 50, 49.9],
+      "mean": 49.967,
+      "min": 49.9,
+      "max": 50,
+      "stddev": 0.047,
+      "runs": 3,
+      "notCaughtUp": 0
+    },
+    "matcher.stress.catchUpSeconds": {
+      "label": "Matcher stress catch-up",
+      "unit": "s",
+      "better": "lower",
+      "values": [12, 14, 13],
+      "mean": 13,
+      "min": 12,
+      "max": 14,
+      "stddev": 0.816,
+      "runs": 3,
+      "notCaughtUp": 0
+    }
+  }
+}
