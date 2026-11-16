@@ -77,13 +77,21 @@ Both files are **verbatim** FHIR copies, so they carry no `"$comment"` header; t
 
 | File | Source | url, version | Steps | Mandatory (`must`) | With a deadline (alarm) |
 |---|---|---|---|---|---|
-| `plan-definitions/emr-service-protocol.json` | first version, `protocol/emr-service-protocol.json` (the eBUZIMA EMR Service protocol) | `http://openphc.org/PlanDefinition/emr-service-protocol`, `1.0.0` | 10 | vitals-recording, consultation, diagnosis | the same 3 (1 day) |
+| `plan-definitions/emr-service-protocol.json` | `openphc/cce-protocol-service`, branch `release-2.0.0`, commit `0be3dde` (CCE-135), `src/test/resources/fhir/rwanda-outpatient-journey-step-groups.json` (identical in `cce-matcher-service`): the Rwanda health-center outpatient protocol that replaced the first version's eBUZIMA one on 2026-11-13 | `http://openphc.org/PlanDefinition/emr-service-protocol`, `1.0.0` | 10 steps in the group `outpatient-visit` (one visit per calendar day) | vitals-recording, consultation, diagnosis | the same 3 (1 day) |
 | `plan-definitions/kenya-sha-emr-service-protocol.json` | `openphc/tiberbu-cce-emitter-adaptor`, branch `release-1.0.0`, commit `7a765a2`, `src/test/resources/plan-definition/` | `http://openphc.org/PlanDefinition/kenya-sha-emr-service-protocol`, `1.0.0` (resource id `kenya-sha-emr-outpatient-service-protocol`) | 15 | consent-request, consent-verification, visit-encounter, patient-check-in, diagnosis | consent-verification, visit-encounter, patient-check-in, diagnosis (1 day) |
 
 The Kenya protocol enrols the patient on a proposed patient-privacy Consent (`consent-request`), then expects
 its verification, an outpatient episode of care (`general-opd`), check-in (SNOMED `184047000`), vitals,
 consultation (SNOMED `11429006`) with lab order/results, diagnosis, medication request/dispense and procedure
 order/procedure, a patient summary (LOINC `60591-5`) and visit closure.
+
+**Why the EMR Service protocol was replaced (2026-11-13)**: since CCE-135 (`cce-protocol-service` commit
+`080d492`) the protocol service only accepts the `after-end` relatedAction relationship. The first version's
+file had one `after-start` (vitals-recording after visit-encounter) and is refused at load. The CCE team's
+replacement keeps the url, version, the 10 steps, their triggers and the 3 mandatory steps with a 1-day
+deadline, and wraps the steps in a calendar-day group; every `ebuzima-emr` template still matches exactly its
+own step, and the expected rows per enrolment event are unchanged. `plan-definitions validate` checks the
+`after-end` rule offline.
 
 Variants (overrides that generated extra plan definitions from the EMR Service protocol: `strict`, `light`, `lab-focus`)
 were **removed** on 2026-11-11 together with the sets that used them; a set entry with `"variant"` is refused.

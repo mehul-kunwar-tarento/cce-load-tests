@@ -137,6 +137,17 @@ describe('validatePlanDefinition', () => {
     assert.match(text, /missing required extension: intelligence-destination/);
   });
 
+  it('accepts only after-end relationships (absent = after-end), as the protocol service does since CCE-135', () => {
+    const follows = (relationship) =>
+      step('b', { relatedAction: [{ actionId: 'a', ...(relationship ? { relationship } : {}) }] });
+    assert.equal(errorsOf(plan([step('a'), follows('after-end')])), '');
+    assert.equal(errorsOf(plan([step('a'), follows(null)])), '');
+    assert.match(
+      errorsOf(plan([step('a'), follows('after-start')])),
+      /Only the after-end relatedAction relationship is supported: action 'b' -> 'a' \(relationship=after-start\)/,
+    );
+  });
+
   it('rejects a "$comment" left inside the resource', () => {
     assert.match(errorsOf({ ...plan([step('a')]), $comment: 'x' }), /\$comment/);
   });

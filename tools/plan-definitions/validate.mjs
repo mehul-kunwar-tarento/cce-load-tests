@@ -255,6 +255,19 @@ export function validatePlanDefinition(json) {
     }
   }
 
+  // validateRelationships (cce-protocol-service release-2.0.0, CCE-135 080d492): only after-end, and no
+  // relationship means after-end; the later step names the step it follows.
+  for (const { action } of allActions(json)) {
+    for (const rel of action.relatedAction ?? []) {
+      const relationship = rel.relationship ?? 'after-end';
+      if (relationship !== 'after-end') {
+        errors.push(
+          `Only the after-end relatedAction relationship is supported: action '${action.id}' -> '${rel.actionId}' (relationship=${relationship})`,
+        );
+      }
+    }
+  }
+
   // validateOptionalStepDeadlines: tolerance-days only on requiredBehavior 'must' steps.
   for (const { action, group } of flattenSteps(json)) {
     if (!group && toleranceDaysOf(action) !== null && action.requiredBehavior !== 'must') {
